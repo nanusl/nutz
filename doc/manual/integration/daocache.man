@@ -3,8 +3,9 @@
 #author:wendal(wendal1985@gmail.com)
 
 -----------------------------------------------
-直接项目README
+用法
 
-	请直接看看项目的README,不会让你失望的!!
+	请查阅插件的README
 	
 	[https://github.com/nutzam/nutzmore/tree/master/nutz-plugins-daocache nutz-plugins-daocache]
+	[https://git.oschina.net/nutz/nutzmore/tree/master/nutz-plugins-daocache Git@OSC镜像]

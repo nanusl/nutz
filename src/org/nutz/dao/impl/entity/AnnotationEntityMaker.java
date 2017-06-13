@@ -113,7 +113,8 @@ public class AnnotationEntityMaker implements EntityMaker {
         String tableName = null;
         if (null == ti.annTable) {
         	tableName = Strings.lowerWord(type.getSimpleName(), '_');
-        	log.warnf("No @Table found, fallback to use table name='%s' for type '%s'", tableName, type.getName());
+        	if (null == ti.annView)
+        	    log.warnf("No @Table found, fallback to use table name='%s' for type '%s'", tableName, type.getName());
         } else {
         	tableName = ti.annTable.value();
         }
@@ -215,6 +216,7 @@ public class AnnotationEntityMaker implements EntityMaker {
         List<MappingInfo> tmp = new ArrayList<MappingInfo>(infos.size());
         MappingInfo miId = null;
         MappingInfo miName = null;
+        MappingInfo miVersion = null;//wjw(2017-04-10),add,version
         for (MappingInfo mi : infos) {
             if (mi.annId != null) {
             	if (miId != null) {
@@ -228,8 +230,16 @@ public class AnnotationEntityMaker implements EntityMaker {
             	}
                 miName = mi;
             }
-            else
-                tmp.add(mi);
+            else{
+            	//wjw(2017-04-10),add,version
+           	    if(mi.annColumn != null && mi.annColumn.version()){
+                    if(miVersion != null){
+                        throw new DaoException("Allows only a single @Version ! " + type);
+                	}
+                	miVersion = mi;
+                }
+            	tmp.add(mi);
+            }
         }
         if (miName != null)
             tmp.add(0, miName);
@@ -354,12 +364,13 @@ public class AnnotationEntityMaker implements EntityMaker {
         // 字段的数据库名
         if (null == info.annColumn || Strings.isBlank(info.annColumn.value())){
             columnName = info.name;
+            if((null != info.annColumn && info.annColumn.hump()) || Daos.FORCE_HUMP_COLUMN_NAME){
+                columnName = Strings.lowerWord(columnName, '_');
+            }
         }else{
             columnName = info.annColumn.value();
         }
-        if(null != info.annColumn && info.annColumn.hump()){
-            columnName = Strings.lowerWord(columnName, '_');
-        }
+        
         ef.setColumnName(columnName);
         // 字段的注释
         boolean hasColumnComment = null != info.columnComment;
@@ -371,6 +382,11 @@ public class AnnotationEntityMaker implements EntityMaker {
             } else {
                 ef.setColumnComment(comment);
             }
+        }
+        
+        //wjw(2017-04-10),add,version
+        if(null != info.annColumn && info.annColumn.version()){
+        	ef.setAsVersion();
         }
 
         // Id 字段

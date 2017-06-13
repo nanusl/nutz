@@ -143,9 +143,12 @@ public abstract class Lang {
      *            参数
      * @return 异常对象
      */
+    @SuppressWarnings("unchecked")
     public static <T extends Throwable> T makeThrow(Class<T> classOfT,
                                                     String format,
                                                     Object... args) {
+        if (classOfT == RuntimeException.class)
+            return (T) new RuntimeException(String.format(format, args));
         return Mirror.me(classOfT).born(String.format(format, args));
     }
 
@@ -433,7 +436,6 @@ public abstract class Lang {
      *            可变参数
      * @return 数组对象
      */
-    @SuppressWarnings("unchecked")
     public static <T> T[] array(T... eles) {
         return eles;
     }
@@ -522,7 +524,6 @@ public abstract class Lang {
      *            可变参数
      * @return 列表对象
      */
-    @SuppressWarnings("unchecked")
     public static <T> ArrayList<T> list(T... eles) {
         ArrayList<T> list = new ArrayList<T>(eles.length);
         for (T ele : eles)
@@ -537,7 +538,6 @@ public abstract class Lang {
      *            可变参数
      * @return 集合对象
      */
-    @SuppressWarnings("unchecked")
     public static <T> Set<T> set(T... eles) {
         Set<T> set = new HashSet<T>();
         for (T ele : eles)
@@ -708,7 +708,7 @@ public abstract class Lang {
         for (T obj : objs) {
             if (obj == val || (null != obj && null != val && obj.equals(val)))
                 continue;
-            if (null == eleType)
+            if (null == eleType && obj != null)
                 eleType = obj.getClass();
             list.add(obj);
         }
@@ -878,7 +878,6 @@ public abstract class Lang {
      *            数组 （数目可变）
      * @return 集合对象
      */
-    @SuppressWarnings("unchecked")
     public static <C extends Collection<T>, T> C fill(C coll, T[]... objss) {
         for (T[] objs : objss)
             for (T obj : objs)
@@ -1263,8 +1262,10 @@ public abstract class Lang {
         if (null == str)
             return null;
         str = Strings.trim(str);
-        if ((str.length() > 0 && str.charAt(0) == '{') && str.endsWith("}"))
+        if (!Strings.isEmpty(str)
+            && (Strings.isQuoteBy(str, '{', '}') || Strings.isQuoteBy(str, '(', ')'))) {
             return Json.fromJson(NutMap.class, str);
+        }
         return Json.fromJson(NutMap.class, "{" + str + "}");
     }
 
@@ -1541,7 +1542,6 @@ public abstract class Lang {
                     return;
 
             // 进行循环
-            Class<T> eType = Mirror.getTypeParam(callback.getClass(), 0);
             if (obj.getClass().isArray()) {
                 int len = Array.getLength(obj);
                 for (int i = 0; i < len; i++)
@@ -1567,6 +1567,7 @@ public abstract class Lang {
                 Map map = (Map) obj;
                 int len = map.size();
                 int i = 0;
+                Class<T> eType = Mirror.getTypeParam(callback.getClass(), 0);
                 if (null != eType && eType != Object.class && eType.isAssignableFrom(Entry.class)) {
                     for (Object v : map.entrySet())
                         try {
@@ -2299,10 +2300,46 @@ public abstract class Lang {
     }
 
     /**
+     * 获取指定文件的 SHA256 值
+     *
+     * @param f
+     *            文件
+     * @return 指定文件的 SHA256 值
+     * @see #digest(String, File)
+     */
+    public static String sha256(File f) {
+        return digest("SHA-256", f);
+    }
+
+    /**
+     * 获取指定输入流的 SHA256 值
+     *
+     * @param ins
+     *            输入流
+     * @return 指定输入流的 SHA256 值
+     * @see #digest(String, InputStream)
+     */
+    public static String sha256(InputStream ins) {
+        return digest("SHA-256", ins);
+    }
+
+    /**
+     * 获取指定字符串的 SHA256 值
+     *
+     * @param cs
+     *            字符串
+     * @return 指定字符串的 SHA256 值
+     * @see #digest(String, CharSequence)
+     */
+    public static String sha256(CharSequence cs) {
+        return digest("SHA-256", cs);
+    }
+
+    /**
      * 从数据文件计算出数字签名
      *
      * @param algorithm
-     *            算法，比如 "SHA1" 或者 "MD5" 等
+     *            算法，比如 "SHA1" "SHA-256" 或者 "MD5" 等
      * @param f
      *            文件
      * @return 数字签名
@@ -2557,6 +2594,8 @@ public abstract class Lang {
      * @return 来源ip
      */
     public static String getIP(HttpServletRequest request) {
+        if (request == null)
+            return "";
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
             if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
@@ -2584,6 +2623,8 @@ public abstract class Lang {
                 }
             }
         }
+        if (Strings.isBlank(ip))
+            return "";
         if (isIPv4Address(ip) || isIPv6Address(ip)) {
             return ip;
         }
@@ -2642,7 +2683,7 @@ public abstract class Lang {
     }
 
     public static StringBuilder execOutput(String cmd) throws IOException {
-        return execOutput(Lang.array(cmd), Encoding.CHARSET_UTF8);
+        return execOutput(Strings.splitIgnoreBlank(cmd, " "), Encoding.CHARSET_UTF8);
     }
 
     public static StringBuilder execOutput(String cmd, Charset charset) throws IOException {

@@ -100,10 +100,12 @@ public abstract class AbstractContext implements Context {
         if (null != obj) {
             // Context
             if (obj instanceof Context) {
-                for (String key : ((Context) obj).keys()) {
-                    if (null != prefix)
-                        key = prefix + key;
-                    this.set(key, ((Context) obj).get(key));
+                Context ctx = (Context) obj;
+                for (String key : ctx.keys()) {
+                    if (null == prefix)
+                        this.set(key, ctx.get(key));
+                    else
+                        this.set(prefix + key, ctx.get(key));
                 }
             }
             // Map

@@ -18,12 +18,12 @@
 	-Dfile.encoding=UTF-8
 	}}}
 	
-	修改之后的,重启eclipse.
+	修改之后的,重启eclipse即可.
 	
 --------------------------------------------------------------------------------------------------------
 JSP页面编码
 
-	{{{
+	{{{<JSP>
 	<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 	}}}
 	
@@ -51,7 +51,7 @@ tomcat编码
 	
 	maven的配置如下
 	
-	{{{
+	{{{<xml>
 	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	}}}
 	
@@ -71,7 +71,7 @@ tomcat编码
 	
 	修改my.ini的mysqld小节,设置服务器字符集,是最佳解决方式
 	
-	{{{
+	{{{<ini>
 	[mysqld]
 	character-set-server = utf8
 	}}}
@@ -109,3 +109,7 @@ Nutz的相关日志
 21:22:25.146 DEBUG (MysqlJdbcExpert.java:212) checkDataSource - Mysql : character_set_server=utf8
 21:22:25.147 DEBUG (MysqlJdbcExpert.java:212) checkDataSource - Mysql : character_set_system=utf8
 	}}}
+	
+	Default Charset的编码,在Eclipse环境内, 通过eclipse.ini调整,在tomcat内的话,通过setenv.bat调整.
+	
+	mysql的编码,通过修改my.ini或jdbc url进行调整

@@ -25,7 +25,6 @@ import java.util.zip.InflaterInputStream;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
 
-import org.nutz.http.dns.HttpDNS;
 import org.nutz.http.sender.FilePostSender;
 import org.nutz.http.sender.GetSender;
 import org.nutz.http.sender.PostSender;
@@ -64,7 +63,7 @@ public abstract class Sender implements Callable<Response> {
     public static Sender create(Request request) {
         if (request.isGet() || request.isDelete())
             return new GetSender(request);
-        if (request.isPost() || request.isPut()) {
+        if ((request.isPost() || request.isPut()) && request.getParams() != null) {
             for (Object val : request.getParams().values()) {
                 if (val instanceof File || val instanceof File[]) {
                     return new FilePostSender(request);
@@ -199,12 +198,6 @@ public abstract class Sender implements Callable<Response> {
         }
         URL url = request.getUrl();
         String host = url.getHost();
-        if (url.getProtocol().equals("http") && !Lang.isIPv4Address(host)) {
-            String ip = HttpDNS.getIp(host);
-            if (ip != null) {
-                url = new URL(url.toString().replaceFirst(host, ip));
-            }
-        }
         conn = (HttpURLConnection) url.openConnection();
         if (conn instanceof HttpsURLConnection) {
             if (sslSocketFactory != null)

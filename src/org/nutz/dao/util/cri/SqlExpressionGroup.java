@@ -27,9 +27,9 @@ import org.nutz.log.Logs;
  */
 public class SqlExpressionGroup extends AbstractPItem implements SqlExpression {
 
-    private List<SqlExpression> exps;
+    private static final long serialVersionUID = 1L;
 
-    private boolean top;
+    private List<SqlExpression> exps;
     
     protected boolean not;
     
@@ -37,7 +37,6 @@ public class SqlExpressionGroup extends AbstractPItem implements SqlExpression {
 
     public SqlExpressionGroup() {
         exps = new ArrayList<SqlExpression>(); // 默认就是10个，能放5个条件，够了吧
-        top = true;
     }
 
     public SqlExpressionGroup and(String name, String op, Object value) {
@@ -363,11 +362,15 @@ public class SqlExpressionGroup extends AbstractPItem implements SqlExpression {
         return new ArrayList<SqlExpression>(exps);
     }
     
-    public void setTop(boolean top) {
-        this.top = top;
-    }
-    
     public List<SqlExpression> getExps() {
 		return exps;
 	}
+    
+    public SqlExpressionGroup clone(){
+        SqlExpressionGroup seg = new SqlExpressionGroup();
+        seg.exps = cloneExps();
+        seg.pojo = this.pojo;
+        seg.top = this.top;
+        return seg;
+    }
 }

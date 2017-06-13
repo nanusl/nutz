@@ -11,6 +11,33 @@ import org.nutz.lang.Times;
 public class TmplTest {
 
     @Test
+    public void test_customized_a() {
+        assertEquals("A100C", Tmpl.exec("A@<b(int)?89>C", "@", "<", ">", Lang.map("b:100"), true));
+        assertEquals("A100C", Tmpl.exec("A@{b(int)?89}C", "@", Lang.map("b:100"), true));
+    }
+
+    @Test
+    public void test_bracket_mode() {
+        assertEquals("A100C", Tmpl.exec("A${b(int)?89}C", Lang.map("b:100")));
+        assertEquals("A89C", Tmpl.exec("A${b(int)?89}C", null));
+    }
+
+    @Test
+    public void test_json_format() {
+        assertEquals("null", Tmpl.exec("${a<json>}", Lang.map("")));
+        assertEquals("null", Tmpl.exec("${a<json>}", Lang.map("a:null")));
+        assertEquals("{x:100,y:99}", Tmpl.exec("${a<json:c>}", Lang.map("a:{x:100,y:99}")));
+        assertEquals("{\"x\":100,\"y\":99}",
+                     Tmpl.exec("${a<json:cq>}", Lang.map("a:{x:100,y:99}")));
+        assertEquals("", Tmpl.exec("${a<json>?}", Lang.map("")));
+        assertEquals("[]", Tmpl.exec("${a<json>?[]}", Lang.map("")));
+        assertEquals("{}", Tmpl.exec("${a<json>?-obj-}", Lang.map("")));
+        assertEquals("xyz", Tmpl.exec("${a<json>?-obj-}", Lang.map("a:'xyz'")));
+        assertEquals("{k:[3, true, \"a\"]}",
+                     Tmpl.exec("${a<json:c>?-obj-}", Lang.map("a:{k:[3,true,'a']}")));
+    }
+
+    @Test
     public void test_string_format() {
         assertEquals("AB   C", Tmpl.exec("A${b<:%-4s>?}C", Lang.map("b:'B'}")));
         // assertEquals("AB C", Tmpl.exec("A${b<string:%-4s>?}C",
@@ -20,6 +47,7 @@ public class TmplTest {
     @Test
     public void test_escape() {
         assertEquals("A${b}C", Tmpl.exec("A$${b}C", Lang.map("b:'BB'}")));
+        assertEquals("${A}", Tmpl.exec("$${${x}}", Lang.map("x:'A'")));
     }
 
     @Test
@@ -81,7 +109,7 @@ public class TmplTest {
 
         assertEquals("false", Tmpl.exec("${v<boolean>?false}", null));
         assertEquals("true", Tmpl.exec("${v<boolean>?true}", Lang.map("{}")));
-        
+
         assertEquals("false", Tmpl.exec("${v<boolean>}", null));
         assertEquals("false", Tmpl.exec("${v<boolean>}", Lang.map("{}")));
     }

@@ -20,7 +20,7 @@ public class Master {
     @Name
     private String name;
 
-    @Many(target = Pet.class, field = "masterId")
+    @Many
     private List<Pet> pets;
 
     public int getId() {

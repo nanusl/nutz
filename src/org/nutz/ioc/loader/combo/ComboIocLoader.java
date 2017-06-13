@@ -90,14 +90,6 @@ public class ComboIocLoader implements IocLoader {
         }
         if (currentClassName != null)
             createIocLoader(currentClassName, argsList);
-
-        Set<String> beanNames = new HashSet<String>();
-        for (IocLoader loader : iocLoaders) {
-            for (String beanName : loader.getName()) {
-                if (!beanNames.add(beanName) && log.isWarnEnabled())
-                    log.warnf("Found Duplicate beanName=%s, pls check you config! loader=%s", beanName,loader.getClass());
-            }
-        }
     }
 
     @SuppressWarnings("unchecked")
@@ -109,13 +101,13 @@ public class ComboIocLoader implements IocLoader {
                 String uccp = Strings.upperFirst(className);
                 _names.add(String.format("org.nutz.integration.%s.%sIocLoader", className, uccp));
                 _names.add(String.format("org.nutz.integration.%s.%sAopConfigure", className, uccp));
-                _names.add(String.format("org.nutz.plugin.%s.%sIocLoader", className, uccp));
-                _names.add(String.format("org.nutz.plugin.%s.%sAopConfigure", className, uccp));
+                _names.add(String.format("org.nutz.plugins.%s.%sIocLoader", className, uccp));
+                _names.add(String.format("org.nutz.plugins.%s.%sAopConfigure", className, uccp));
                 // 寻找插件或集成类 @since 1.r.57
                 for (String _className : _names) {
                     klass = (Class<? extends IocLoader>) Lang.loadClassQuite(_className);
                     if (klass != null) {
-                        log.debug("found " + _className + " -- " + _className);
+                        log.debug("found " + className + " -- " + _className);
                         break;
                     }
                 }

@@ -6,6 +6,8 @@ import org.nutz.dao.util.Pojos;
 
 public class ConditionPItem extends NoParamsPItem {
 
+    private static final long serialVersionUID = 1L;
+
     private Condition cnd;
 
     public ConditionPItem(Condition cnd) {
@@ -14,7 +16,7 @@ public class ConditionPItem extends NoParamsPItem {
 
     public void joinSql(Entity<?> en, StringBuilder sb) {
         if (null != cnd) {
-            sb.append(' ').append(Pojos.formatCondition(en, cnd));
+            sb.append(' ').append(Pojos.formatCondition(en, cnd, top));
         }
     }
 

@@ -30,8 +30,24 @@ public class Pager implements PageInfo, Serializable {
     private int recordCount;
 
     public Pager() {
-        pageNumber = 1;
-        pageSize = DEFAULT_PAGE_SIZE;
+        this.pageNumber = 1;
+        this.pageSize = DEFAULT_PAGE_SIZE;
+    }
+
+    public Pager(int pageNumber) {
+        if (pageNumber < 1)
+            pageNumber = 1;
+        this.pageNumber = pageNumber;
+        this.pageSize = DEFAULT_PAGE_SIZE;
+    }
+
+    public Pager(int pageNumber, int pageSize) {
+        if (pageNumber < 1)
+            pageNumber = 1;
+        if (pageSize < 1)
+            pageSize = DEFAULT_PAGE_SIZE;
+        this.pageNumber = pageNumber;
+        this.pageSize = pageSize;
     }
 
     public Pager resetPageCount() {

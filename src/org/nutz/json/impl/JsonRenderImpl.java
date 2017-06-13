@@ -8,6 +8,7 @@ import java.text.DateFormat;
 import java.text.Format;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -64,7 +65,7 @@ public class JsonRenderImpl implements JsonRender {
 
     public void render(Object obj) throws IOException {
         if (null == obj) {
-            writer.write("null");
+            appendNull();
         } else if (obj instanceof JsonRender) {
             ((JsonRender) obj).render(null);
         } else if (obj instanceof Class) {
@@ -99,9 +100,9 @@ public class JsonRenderImpl implements JsonRender {
             else if (mr.isDateTimeLike()) {
                 boolean flag = true;
                 if (obj instanceof Date) {
-                    DateFormat df = format.getDateFormat();
-                    if (df != null) {
-                        string2Json(df.format((Date)obj));
+                    String _val = doDateFormat((Date)obj, null);
+                    if (_val != null) {
+                        string2Json(_val);
                         flag = false;
                     }
                 }
@@ -259,21 +260,41 @@ public class JsonRenderImpl implements JsonRender {
             String name = jef.getName();
             try {
                 Object value = jef.getValue(obj);
-
                 // 判断是否应该被忽略
-                if (!this.isIgnore(name, value)) {
-                    Mirror mirror = null;
-                    // 以前曾经输出过 ...
-                    if (null != value) {
-                        // zozoh: 循环引用的默认行为，应该为 null，以便和其他语言交换数据
-                        mirror = Mirror.me(value);
-                        if (mirror.isPojo()) {
-                            if (memo.contains(value))
-                                value = null;
+                if (this.isIgnore(name, value))
+                    continue;
+                Mirror mirror = jef.getMirror();
+                // 以前曾经输出过 ...
+                if (null != value) {
+                    // zozoh: 循环引用的默认行为，应该为 null，以便和其他语言交换数据
+                    if (mirror.isPojo()) {
+                        if (memo.contains(value))
+                            value = null;
+                    }
+                }
+                if (null == value) {
+                    // 处理各种类型的空值
+                    if (mirror != null) {
+                        if (mirror.isStringLike()) {
+                            if (format.isNullStringAsEmpty())
+                                value = "";
+                        }
+                        else if (mirror.isNumber()) {
+                            if (format.isNullNumberAsZero())
+                                value = 0;
+                        }
+                        else if (mirror.isCollection()) {
+                            if (format.isNullListAsEmpty())
+                                value = Collections.EMPTY_LIST;
+                        }
+                        else if (jef.getGenericType() == Boolean.class) {
+                            if (format.isNullBooleanAsFalse())
+                                value = false;
                         }
                     }
+                } else {
                     // 如果是强制输出为字符串的
-                    if (null != value && jef.isForceString()) {
+                    if (jef.isForceString()) {
                         // 数组
                         if (value.getClass().isArray()) {
                             String[] ss = new String[Array.getLength(value)];
@@ -295,15 +316,16 @@ public class JsonRenderImpl implements JsonRender {
                         else {
                             value = value2string(jef, value);
                         }
-                    } else if (jef.hasDataFormat() && null != value && value instanceof Date) {
+                    } else if (jef.hasDataFormat() && value instanceof Date) {
                         value = jef.getDataFormat().format((Date)value);
-                    } else if (jef.hasDataFormat() && null != value && (mirror != null && mirror.isNumber())) {
+                    } else if (jef.hasDataFormat() && (mirror != null && mirror.isNumber())) {
                         value = jef.getDataFormat().format(value);
                     }
-
-                    // 加入输出列表 ...
-                    list.add(new Pair(name, value));
                 }
+                
+                
+                // 加入输出列表 ...
+                list.add(new Pair(name, value));
             }
             catch (FailToGetValueException e) {}
         }
@@ -332,7 +354,7 @@ public class JsonRenderImpl implements JsonRender {
 
     private void string2Json(String s) throws IOException {
         if (null == s)
-            writer.append("null");
+            appendNull();
         else {
             char[] cs = s.toCharArray();
             writer.append(format.getSeparator());
@@ -426,6 +448,8 @@ public class JsonRenderImpl implements JsonRender {
             }
         }
         if (df != null) {
+            if (df instanceof DateFormat)
+                return doDateFormat((Date)value, (DateFormat)df);
             return df.format(value);
         }
         return value.toString();
@@ -435,5 +459,23 @@ public class JsonRenderImpl implements JsonRender {
         int idt = format.getIndent();
         for (int i = 0; i < idt; i++)
             writer.write(format.getIndentBy());
+    }
+    
+    protected void appendNull() throws IOException {
+        if (format.isNullAsEmtry())
+            writer.write("\"\"");
+        else
+            writer.write("null");
+    }
+    
+    protected String doDateFormat(Date date, DateFormat df) {
+        if (df == null)
+            df = format.getDateFormat();
+        if (df != null) {
+            if (format.getTimeZone() != null)
+                df.setTimeZone(format.getTimeZone());
+            return df.format(date);
+        }
+        return null;
     }
 }

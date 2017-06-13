@@ -45,7 +45,6 @@ final class JsonTokenScan {
     }
 
     protected void _nextToken() {
-        // System.out.println("_nextToken > " + (char) token.type);
         switch (token.type) {
         case MapStart:
         case MapEnd:
@@ -227,7 +226,6 @@ final class JsonTokenScan {
 
     protected Object readObject(int endTag) {
         nextToken();
-        // System.out.println(">>>> " + token.type + " " + token);
         switch (token.type) {
         case MapStart:
             return readMap();
@@ -288,7 +286,12 @@ final class JsonTokenScan {
                     }
                 }
                 Nums.Radix r = Nums.evalRadix(token.value);
-                long n = Long.parseLong(r.val, r.radix);
+                long n = 0;
+                try {
+                    n = Long.parseLong(r.val, r.radix);
+                } catch (Throwable e) {
+                    n = Long.parseLong(token.value);
+                }
                 if (Integer.MAX_VALUE >= n && n >= Integer.MIN_VALUE) {
                     return (int) n;
                 }
@@ -350,14 +353,12 @@ final class JsonTokenScan {
                 nextToken.value = (char) c + Lang.readAll(reader);
             else
                 nextToken.value = Lang.readAll(reader);
-            // System.out.println("VVVVV>>>>>>>" + nextToken.value);
             return readObject(-1);
         }
     }
 
     char nextChar() {
         int c = readChar();
-        // System.out.println("+++++++++++===>> " + (char) c);
         if (c == -1)
             throw new JsonException("Unexpect EOF");
         return (char) c;

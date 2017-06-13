@@ -10,6 +10,8 @@ import org.nutz.lang.Lang;
 
 public class PkConditionPItem extends AbstractPItem {
 
+    private static final long serialVersionUID = 1L;
+
     private ValueAdaptor[] vas;
 
     private Object[] pks;
@@ -20,7 +22,8 @@ public class PkConditionPItem extends AbstractPItem {
     }
 
     public void joinSql(Entity<?> en, StringBuilder sb) {
-        sb.append(" WHERE ");
+        if (top)
+            sb.append(" WHERE ");
         Iterator<MappingField> it = _en(en).getCompositePKFields().iterator();
         sb.append(it.next().getColumnNameInSql()).append("=?");
         while (it.hasNext()) {

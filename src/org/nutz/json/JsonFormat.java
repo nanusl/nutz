@@ -3,6 +3,7 @@ package org.nutz.json;
 import java.text.DateFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
+import java.util.TimeZone;
 import java.util.regex.Pattern;
 
 import org.nutz.castor.Castors;
@@ -134,6 +135,21 @@ public class JsonFormat implements Cloneable {
      * 数字格式
      */
     private NumberFormat numberFormat;
+    
+    /**
+     * 遇到空值的时候写入字符串
+     */
+    private boolean nullAsEmtry;
+    
+    private boolean nullListAsEmpty;
+    
+    private boolean nullStringAsEmpty;
+    
+    private boolean nullBooleanAsFalse;
+    
+    private boolean nullNumberAsZero;
+    
+    private TimeZone timeZone;
 
     /**
      * 判断该字段是否是指定输出方式中的字段
@@ -434,8 +450,86 @@ public class JsonFormat implements Cloneable {
         jf.unicodeLower = this.unicodeLower;
         jf.dateFormat = this.dateFormat;
         jf.numberFormat = this.numberFormat;
+        jf.nullAsEmtry = this.nullAsEmtry;
+        jf.nullListAsEmpty = this.nullListAsEmpty;
+        jf.nullNumberAsZero = this.nullNumberAsZero;
+        jf.nullStringAsEmpty = this.nullStringAsEmpty;
+        jf.nullBooleanAsFalse = this.nullBooleanAsFalse;
+        jf.timeZone = this.timeZone;
         return jf;
     }
     
     public static String DATEFORMAT_TIMESTAMP = "timestamp";
+
+    public Pattern getActived() {
+        return actived;
+    }
+
+    public JsonFormat setActived(Pattern actived) {
+        this.actived = actived;
+        return this;
+    }
+
+    public Pattern getLocked() {
+        return locked;
+    }
+
+    public JsonFormat setLocked(Pattern locked) {
+        this.locked = locked;
+        return this;
+    }
+
+    public boolean isNullAsEmtry() {
+        return nullAsEmtry;
+    }
+
+    public JsonFormat setNullAsEmtry(boolean nullAsEmtry) {
+        this.nullAsEmtry = nullAsEmtry;
+        return this;
+    }
+
+    public TimeZone getTimeZone() {
+        return timeZone;
+    }
+
+    public JsonFormat setTimeZone(TimeZone timeZone) {
+        this.timeZone = timeZone;
+        return this;
+    }
+
+    public boolean isNullListAsEmpty() {
+        return nullListAsEmpty;
+    }
+
+    public JsonFormat setNullListAsEmpty(boolean nullListAsEmpty) {
+        this.nullListAsEmpty = nullListAsEmpty;
+        return this;
+    }
+
+    public boolean isNullStringAsEmpty() {
+        return nullStringAsEmpty;
+    }
+
+    public JsonFormat setNullStringAsEmpty(boolean nullStringAsEmpty) {
+        this.nullStringAsEmpty = nullStringAsEmpty;
+        return this;
+    }
+
+    public boolean isNullBooleanAsFalse() {
+        return nullBooleanAsFalse;
+    }
+
+    public JsonFormat setNullBooleanAsFalse(boolean nullBooleanAsFalse) {
+        this.nullBooleanAsFalse = nullBooleanAsFalse;
+        return this;
+    }
+
+    public boolean isNullNumberAsZero() {
+        return nullNumberAsZero;
+    }
+
+    public JsonFormat setNullNumberAsZero(boolean nullNumberAsZero) {
+        this.nullNumberAsZero = nullNumberAsZero;
+        return this;
+    }
 }

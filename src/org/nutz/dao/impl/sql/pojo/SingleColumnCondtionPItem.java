@@ -8,6 +8,8 @@ import org.nutz.lang.Lang;
 
 public class SingleColumnCondtionPItem extends AbstractPItem {
 
+    private static final long serialVersionUID = 1L;
+
     private ValueAdaptor va;
 
     private Object def;
@@ -62,18 +64,20 @@ public class SingleColumnCondtionPItem extends AbstractPItem {
     }
 
     public void joinSql(Entity<?> en, StringBuilder sb) {
+        if (top)
+            sb.append(" WHERE ");
         if (null != mf && !casesensitive)
             switch (mf.getColumnType()) {
             case CHAR:
             case VARCHAR:
             case TEXT:
-                sb.append(" WHERE LOWER(").append(colName).append(")=LOWER(?)");
+                sb.append("LOWER(").append(colName).append(")=LOWER(?)");
                 return;
             default :
                 break;
             }
 
-        sb.append(" WHERE ").append(colName).append("=?");
+        sb.append(colName).append("=?");
     }
 
     public int joinAdaptor(Entity<?> en, ValueAdaptor[] adaptors, int off) {

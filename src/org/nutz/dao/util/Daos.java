@@ -250,16 +250,19 @@ public abstract class Daos {
         Molecule<List<T>> molecule = new Molecule<List<T>>() {
             public void run() {
                 List<T> list = dao.query(classOfT, cnd, pager);
-                for (T t : list)
-                    dao.fetchLinks(t, regex);
+                dao.fetchLinks(list, regex);
                 setObj(list);
             }
         };
         return Trans.exec(molecule);
     }
+    
+    public static StringBuilder dataDict(DataSource ds, String... packages) {
+        return dataDict(new NutDao(ds), packages);
+    }
 
     /** 根据Pojo生成数据字典,zdoc格式 */
-    public static StringBuilder dataDict(DataSource ds, String... packages) {
+    public static StringBuilder dataDict(Dao dao, String... packages) {
         StringBuilder sb = new StringBuilder();
         List<Class<?>> ks = new ArrayList<Class<?>>();
         for (String packageName : packages) {
@@ -273,17 +276,7 @@ public abstract class Daos {
         }
         // log.infof("Found %d table class", ks.size());
 
-        JdbcExpert exp = Jdbcs.getExpert(ds);
-        NutDao dao = new NutDao(ds);
-
-        Method evalFieldType;
-        try {
-            evalFieldType = exp.getClass().getDeclaredMethod("evalFieldType", MappingField.class);
-        }
-        catch (Throwable e) {
-            throw Lang.wrapThrow(e);
-        }
-        evalFieldType.setAccessible(true);
+        JdbcExpert exp = dao.getJdbcExpert();
         Entity<?> entity = null;
         String line = "-------------------------------------------------------------------\n";
         sb.append("#title:数据字典\n");
@@ -299,13 +292,7 @@ public abstract class Daos {
             sb.append("\t||序号||列名||数据类型||主键||非空||默认值||java属性名||java类型||注释||\n");
             int index = 1;
             for (MappingField field : entity.getMappingFields()) {
-                String dataType;
-                try {
-                    dataType = (String) evalFieldType.invoke(exp, field);
-                }
-                catch (Throwable e) {
-                    throw Lang.wrapThrow(e); // 不可能发生的
-                }
+                String dataType = exp.evalFieldType(field);
                 sb.append("\t||")
                   .append(index++)
                   .append("||")
@@ -347,8 +334,9 @@ public abstract class Daos {
     }
 
     /**
-     * 查询某sql的结果条数
+     * 查询某sql的结果条数. 请使用Sql接口的版本
      */
+    @Deprecated
     public static long queryCount(Dao dao, String sql) {
         String tmpTable = "as _nutz_tmp";
         if (dao.meta().isDB2())
@@ -357,89 +345,32 @@ public abstract class Daos {
             tmpTable = "";
         else
             tmpTable += "_" + R.UU32();
-        Sql sql2 = Sqls.fetchInt("select count(1) from (" + sql + ")" + tmpTable);
+        Sql sql2 = Sqls.fetchLong("select count(1) from (" + sql + ")" + tmpTable);
         dao.execute(sql2);
-        return sql2.getInt();
+        return sql2.getLong();
     }
-
+    
     /**
-     * 执行一个特殊的Chain(事实上普通Chain也能执行,但不建议使用)
-     *
-     * @see org.nutz.dao.Chain#addSpecial(String, Object)
+     * 查询某sql的结果条数
+     * @param dao 用于执行该count方法的dao实例
+     * @param sql 原本的Sql对象,将复制其sql语句,变量和参数表.
      */
-    @SuppressWarnings({"rawtypes"})
-    public static int updateBySpecialChain(Dao dao,
-                                           Entity en,
-                                           String tableName,
-                                           Chain chain,
-                                           Condition cnd) {
-        if (en != null)
-            tableName = en.getTableName();
-        if (tableName == null)
-            throw Lang.makeThrow(DaoException.class, "tableName and en is NULL !!");
-        final StringBuilder sql = new StringBuilder("UPDATE ").append(tableName).append(" SET ");
-        Chain head = chain.head();
-        final List<Object> values = new ArrayList<Object>();
-        final List<ValueAdaptor> adaptors = new ArrayList<ValueAdaptor>();
-        while (head != null) {
-            MappingField mf = null;
-            if (en != null)
-                mf = en.getField(head.name());
-            String colName = head.name();
-            if (mf != null)
-                colName = mf.getColumnNameInSql();
-            sql.append(colName).append("=");
-            if (head.special()) {
-                if (head.value() != null && head.value() instanceof String) {
-                    String str = (String) head.value();
-                    if (str.length() > 0) {
-                        switch (str.charAt(0)) {
-                        case '+':
-                        case '-':
-                        case '*':
-                        case '/':
-                        case '%':
-                        case '&':
-                        case '^':
-                        case '|':
-                            sql.append(colName);
-                            break;
-                        }
-                    }
-                }
-                sql.append(head.value());
-            } else {
-                sql.append("?");
-                values.add(head.value());
-                ValueAdaptor adaptor = Jdbcs.getAdaptorBy(head.value());
-                if (mf != null && mf.getAdaptor() != null)
-                    adaptor = mf.getAdaptor();
-                adaptors.add(adaptor);
-            }
-            sql.append(" ");
-            head = head.next();
-            if (head != null)
-                sql.append(", ");
+    public static long queryCount(Dao dao, Sql sql) {
+        String tmpTable = "as _nutz_tmp";
+        if (dao.meta().isDB2())
+            tmpTable = "as nutz_tmp_" + R.UU32();
+        else if (dao.meta().isOracle())
+            tmpTable = "";
+        else
+            tmpTable += "_" + R.UU32();
+        Sql sql2 = Sqls.fetchLong("select count(1) from (" + sql.getSourceSql() + ")" + tmpTable);
+        for (String key : sql.params().keys()) {
+            sql2.setParam(key, sql.params().get(key));
         }
-        if (cnd != null)
-            sql.append(" ").append(cnd.toSql(en));
-        if (log.isDebugEnabled())
-            log.debug(sql);
-        final int[] ints = new int[1];
-        dao.run(new ConnCallback() {
-            public void invoke(Connection conn) throws Exception {
-                PreparedStatement ps = conn.prepareStatement(sql.toString());
-                try {
-                    for (int i = 0; i < values.size(); i++)
-                        adaptors.get(i).set(ps, values.get(i), i + 1);
-                    ints[0] = ps.executeUpdate();
-                }
-                finally {
-                    Daos.safeClose(ps);
-                }
-            }
-        });
-        return ints[0];
+        for (String key : sql.vars().keys()) {
+            sql2.setVar(key, sql.vars().get(key));
+        }
+        return dao.execute(sql2).getLong();
     }
 
     /**
@@ -658,8 +589,10 @@ public abstract class Daos {
                 if (matcher.isIgnoreDate() && val instanceof Date) {
                     continue;
                 }
-                if (matcher.isIgnoreBlankStr() && val instanceof String) {
-
+                if (matcher.isIgnoreBlankStr()
+                    && val instanceof CharSequence
+                    && Strings.isBlank((CharSequence) val)) {
+                    continue;
                 }
             }
             callback.invoke(mf, val);
@@ -887,9 +820,15 @@ public abstract class Daos {
                 if (mf.isName())
                     continue;
             }
-            delSqls.add(Sqls.createf("ALTER TABLE %s DROP INDEX %s",
-                                     getTableName(dao, en, t),
-                                     index));
+            if (dao.meta().isSqlServer()) {
+                delSqls.add(Sqls.createf("DROP INDEX %s.%s",
+                                         getTableName(dao, en, t),
+                                         index));
+            } else {
+                delSqls.add(Sqls.createf("ALTER TABLE %s DROP INDEX %s",
+                                         getTableName(dao, en, t),
+                                         index));
+            }
         }
         if (!Lang.isEmpty(delSqls)) {
             uis.setSqlsDel(Lang.collection2array(delSqls));
@@ -1085,6 +1024,8 @@ public abstract class Daos {
 
     /** 是否把字段名给变成大写 */
     public static boolean FORCE_UPPER_COLUMN_NAME = false;
+    
+    public static boolean FORCE_HUMP_COLUMN_NAME = false;
 
     /** varchar 字段的默认字段长度 */
     public static int DEFAULT_VARCHAR_WIDTH = 128;

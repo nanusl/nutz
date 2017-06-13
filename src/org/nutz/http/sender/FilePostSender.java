@@ -35,7 +35,7 @@ public class FilePostSender extends PostSender {
 	@Override
 	public Response send() throws HttpException {
 		try {
-			String boundary = "---------------------------[Nutz]" + R.UU32();
+			String boundary = "------FormBoundary" + R.UU32();
 			openConnection();
 			setupRequestHeader();
 			conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
@@ -55,7 +55,6 @@ public class FilePostSender extends PostSender {
 	public static void export(Map<String, Object> params, OutputStream out, final String boundary, final String enc) throws IOException {
 	    final DataOutputStream outs = new DataOutputStream(out);
         for (Entry<String, ?> entry : params.entrySet()) {
-            outs.writeBytes("--" + boundary + SEPARATOR);
             final String key = entry.getKey();
             Object val = entry.getValue();
             if (val == null)
@@ -65,11 +64,12 @@ public class FilePostSender extends PostSender {
                 public void invoke(int index, Object ele, int length) throws ExitLoop, ContinueLoop, LoopException {
 
                     try {
+                        outs.writeBytes("--" + boundary + SEPARATOR);
                         if (ele != null && ele instanceof File) {
                             writeFile((File)ele, key, outs, boundary, enc);
                             return;
                         }
-                        outs.writeBytes("Content-Disposition:    form-data;    name=\""
+                        outs.writeBytes("Content-Disposition: form-data; name=\""
                                     + key
                                     + "\""
                                     + SEPARATOR
@@ -89,14 +89,16 @@ public class FilePostSender extends PostSender {
 	}
 	
 	protected static void writeFile(File f, String key, DataOutputStream outs, String boundary, final String enc) throws IOException {
-	    outs.writeBytes("Content-Disposition:    form-data;    name=\""
+	    outs.writeBytes("Content-Disposition: form-data; name=\""
                 + key
                 + "\";    filename=\"");
         outs.write(f.getName().getBytes(enc));
         outs.writeBytes("\"" + SEPARATOR);
-        outs.writeBytes("Content-Type:   application/octet-stream"
-                + SEPARATOR
-                + SEPARATOR);
+        String ct = "application/octet-stream";
+        if (f.getName().endsWith(".jpg")) {
+            ct = "image/jpeg";
+        }
+        outs.writeBytes("Content-Type: " + ct + SEPARATOR + SEPARATOR);
         InputStream is = null;
         try {
             is = Streams.fileIn(f);

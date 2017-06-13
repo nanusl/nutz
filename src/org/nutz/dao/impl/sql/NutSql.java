@@ -15,7 +15,6 @@ import org.nutz.dao.entity.Entity;
 import org.nutz.dao.entity.Record;
 import org.nutz.dao.impl.sql.pojo.AbstractPItem;
 import org.nutz.dao.impl.sql.pojo.StaticPItem;
-import org.nutz.dao.jdbc.Jdbcs;
 import org.nutz.dao.jdbc.ValueAdaptor;
 import org.nutz.dao.pager.Pager;
 import org.nutz.dao.sql.DaoStatement;
@@ -30,6 +29,8 @@ import org.nutz.lang.Lang;
 import org.nutz.lang.Strings;
 
 public class NutSql extends NutStatement implements Sql {
+
+    private static final long serialVersionUID = 1L;
 
     protected String sourceSql;
     protected VarSet vars;
@@ -196,7 +197,11 @@ public class NutSql extends NutStatement implements Sql {
 
     class SqlVarPItem extends AbstractPItem {
 
-        public String name;
+        /**
+		 * 
+		 */
+		private static final long serialVersionUID = 2655530650031939556L;
+		public String name;
 
         public SqlVarPItem(String name) {
             this.name = name;
@@ -249,7 +254,11 @@ public class NutSql extends NutStatement implements Sql {
 
     class SqlParamPItem extends AbstractPItem {
 
-        public String name;
+        /**
+		 * 
+		 */
+		private static final long serialVersionUID = 1494513192752663060L;
+		public String name;
 
         public SqlParamPItem(String name) {
             this.name = name;
@@ -288,7 +297,7 @@ public class NutSql extends NutStatement implements Sql {
                 }
             }
             if (val == null) {
-                adaptors[off] = Jdbcs.getAdaptorBy(null);
+                adaptors[off] = getAdapterBy(null);
                 return off + 1;
             } else if (val instanceof PItem) {
                 return ((PItem) val).joinAdaptor(en, adaptors, off);
@@ -296,14 +305,14 @@ public class NutSql extends NutStatement implements Sql {
                 int len = Lang.length(val);
                 Lang.each(val, new Each<Object>() {
                     public void invoke(int index, Object ele, int length) {
-                        adaptors[off + index] = Jdbcs.getAdaptorBy(ele);
+                        adaptors[off + index] = getAdapterBy(ele);
                     }
                 });
                 return off + len;
                 // } else if (val instanceof Condition) {
 
             } else {
-                adaptors[off] = Jdbcs.getAdaptorBy(val);
+                adaptors[off] = getAdapterBy(val);
                 return off + 1;
             }
         }

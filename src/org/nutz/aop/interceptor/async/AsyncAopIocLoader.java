@@ -22,7 +22,7 @@ public class AsyncAopIocLoader extends SimpleAopMaker<Async>{
 		this(Executors.newFixedThreadPool(size));
 	}
 	
-	public AsyncAopIocLoader(ExecutorService es) {
+	protected AsyncAopIocLoader(ExecutorService es) {
 	    this.es = es;
 	}
 	
@@ -39,5 +39,9 @@ public class AsyncAopIocLoader extends SimpleAopMaker<Async>{
 	
 	public ExecutorService getExecutorService() {
         return es;
+    }
+	
+	public void setExecutorService(ExecutorService es) {
+        this.es = es;
     }
 }

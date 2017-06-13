@@ -4,11 +4,14 @@ import org.nutz.lang.Strings;
 import org.nutz.lang.util.NutBean;
 import org.nutz.mapl.Mapl;
 
-abstract class TmplDynamicEle<T> implements TmplEle {
+abstract class TmplDynamicEle implements TmplEle {
 
     private String _type;
 
     private String key;
+
+    // 标识键是否包括 '[' ']' 或者 '.' 等可以被 Mapl 解析的取值路径
+    private boolean _is_key_as_path;
 
     private String _org_fmt;
 
@@ -21,6 +24,8 @@ abstract class TmplDynamicEle<T> implements TmplEle {
     protected TmplDynamicEle(String type, String key, String fmt, String dft_str) {
         this._type = type;
         this.key = key;
+        this._is_key_as_path = key.indexOf('.') > 0
+                               || (key.indexOf('[') > 0 && key.indexOf(']') > 0);
         this._org_fmt = fmt;
 
         // 默认值取 key @xxx
@@ -54,12 +59,14 @@ abstract class TmplDynamicEle<T> implements TmplEle {
     }
 
     public void join(StringBuilder sb, NutBean context, boolean showKey) {
-        Object val = Mapl.cell(context, key);
+        // 看看有没有值
+        Object val = __get_val(context, key);
 
+        // 试图用默认键取值
         if (null == val) {
             // 默认键
             if (null != _dft_key) {
-                val = Mapl.cell(context, _dft_key);
+                val = __get_val(context, _dft_key);
             }
             // 默认值
             else if (null != _dft_val) {
@@ -67,6 +74,7 @@ abstract class TmplDynamicEle<T> implements TmplEle {
             }
         }
 
+        // 转换成字符串
         String str = _val(val);
 
         // 如果木值
@@ -79,6 +87,17 @@ abstract class TmplDynamicEle<T> implements TmplEle {
         else {
             sb.append(str);
         }
+    }
+
+    private Object __get_val(NutBean context, String k) {
+        // 得到值
+        Object val = context.get(k);
+
+        // 如果没值，看看是否需要用 mapl 搞一下
+        if (null == val && _is_key_as_path) {
+            val = Mapl.cell(context, k);
+        }
+        return val;
     }
 
     protected abstract String _val(Object val);

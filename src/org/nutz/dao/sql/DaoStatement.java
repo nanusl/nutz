@@ -1,5 +1,6 @@
 package org.nutz.dao.sql;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -7,6 +8,7 @@ import java.sql.Statement;
 import java.util.List;
 
 import org.nutz.dao.entity.Entity;
+import org.nutz.dao.jdbc.JdbcExpert;
 import org.nutz.dao.jdbc.ValueAdaptor;
 import org.nutz.dao.pager.Pager;
 
@@ -17,7 +19,7 @@ import org.nutz.dao.pager.Pager;
  * 
  * @author zozoh(zozohtnt@gmail.com)
  */
-public interface DaoStatement {
+public interface DaoStatement extends Serializable {
 
     /**
      * @return 当前语句是否是一个 SELECT 语句
@@ -251,4 +253,6 @@ public interface DaoStatement {
     boolean isForceExecQuery();
     
     String forPrint();
+    
+    void setExpert(JdbcExpert expert);
 }

@@ -485,6 +485,9 @@ public abstract class Xmls {
      * @return 一个 Map 对象
      */
     public static NutMap asMap(Element ele, final boolean lowFirst) {
+        return asMap(ele, lowFirst, false);
+    }
+    public static NutMap asMap(Element ele, final boolean lowFirst, final boolean dupAsList) {
         final NutMap map = new NutMap();
         eachChildren(ele, new Each<Element>() {
             public void invoke(int index, Element _ele, int length)
@@ -494,12 +497,18 @@ public abstract class Xmls {
                     key = Strings.lowerFirst(key);
                 Map<String, Object> tmp = asMap(_ele, lowFirst);
                 if (!tmp.isEmpty()) {
-                    map.setv(key, tmp);
+                    if (dupAsList)
+                        map.addv(key, tmp);
+                    else
+                        map.setv(key, tmp);
                     return;
                 }
                 String val = getText(_ele);
                 if (!Strings.isBlank(val)) {
-                    map.setv(key, val);
+                    if (dupAsList)
+                        map.addv(key, val);
+                    else
+                        map.setv(key, val);
                 }
             }
         });
@@ -542,7 +551,11 @@ public abstract class Xmls {
      * @return XML 字符串
      */
     public static String mapToXml(Map<String, Object> map) {
-        StringBuilder sb = new StringBuilder("<xml>");
+        return mapToXml("xml", map);
+    }
+    
+    public static String mapToXml(String root, Map<String, Object> map) {
+        StringBuilder sb = new StringBuilder("<"+root+">");
         for (Map.Entry<String, Object> en : map.entrySet()) {
             String key = en.getKey();
             Object val = en.getValue();
@@ -552,7 +565,7 @@ public abstract class Xmls {
             sb.append(val.toString());
             sb.append("</").append(key).append('>');
         }
-        sb.append("\n</xml>");
+        sb.append("\n</"+root+">");
         return sb.toString();
     }
 
@@ -585,4 +598,6 @@ public abstract class Xmls {
             throw Lang.wrapThrow(e);
         }
     }
+    
+    public static String HEAD = "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
 }

@@ -4,7 +4,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 group = 'org.nutz'
-version = '1.r.59'
+version = '1.r.60'
 
 ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
@@ -20,19 +20,19 @@ repositories {
 dependencies {
     testCompile group: 'junit', name: 'junit', version:'4.8.2'
     testCompile group: 'com.h2database', name: 'h2', version:'1.4.181'
-    testCompile group: 'commons-dbcp', name: 'commons-dbcp', version:'1.4'
     testCompile group: 'org.eclipse.jetty', name: 'jetty-server', version:'7.6.18.v20150929'
     testCompile group: 'org.eclipse.jetty', name: 'jetty-jsp', version:'7.6.18.v20150929'
-    testCompile group: 'org.postgresql', name: 'postgresql', version:'9.3-1102-jdbc4'
-    testCompile group: 'mysql', name: 'mysql-connector-java', version:'5.1.39'
-    testCompile(group: 'com.alibaba', name: 'druid', version:'1.0.25') {
+    testCompile group: 'org.postgresql', name: 'postgresql', version:'9.4-1206-jdbc41'
+    testCompile group: 'mysql', name: 'mysql-connector-java', version:'5.1.40'
+    testCompile group: 'org.xerial', name: 'sqlite-jdbc', version:'3.8.11.2'
+    testCompile(group: 'com.alibaba', name: 'druid', version:'1.0.26') {
 		exclude(module: 'jconsole')
 		exclude(module: 'tools')
     }
-    testCompile group: 'org.eclipse.jetty', name: 'jetty-webapp', version:'7.6.18.v20150929'
+    testCompile group: 'org.eclipse.jetty.aggregate', name: 'jetty-all', version:'9.2.20.v20161216'
+    testCompile group: 'org.eclipse.jetty', name: 'jetty-jsp', version:'9.2.19.v20160908'
     compile(group: 'log4j', name: 'log4j', version:'1.2.17')
-    compile(group: 'javax.servlet', name: 'servlet-api', version:'2.5')
-    compile(group: 'javax.websocket', name: 'javax.websocket-api', version:'1.1')
+    compile(group: 'javax.servlet', name: 'java.servlet-api', version:'3.1.0')
 }
 
 sourceSets {
@@ -106,7 +106,7 @@ artifacts {
     archives sourcesJar
     archives javadocJar
 	archives androidJar
-	archives jsonJar
+//	archives jsonJar
 }
 
 processResources {
@@ -148,7 +148,7 @@ uploadArchives {
     repositories {
         mavenDeployer {
             beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-            
+
             repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
                 authentication(userName: ossrhUsername, password: ossrhPassword)
             }

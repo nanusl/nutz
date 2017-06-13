@@ -9,8 +9,10 @@ import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,9 +26,11 @@ import java.util.Map;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.nutz.castor.Castors;
+import org.nutz.dao.entity.Record;
 import org.nutz.dao.test.meta.Base;
 import org.nutz.dao.test.meta.Pet;
 import org.nutz.ioc.meta.IocValue;
+import org.nutz.json.impl.JsonRenderImpl;
 import org.nutz.json.meta.Issue1199;
 import org.nutz.json.meta.JA;
 import org.nutz.json.meta.JB;
@@ -45,6 +49,7 @@ import org.nutz.lang.stream.StringInputStream;
 import org.nutz.lang.stream.StringOutputStream;
 import org.nutz.lang.util.NutMap;
 import org.nutz.lang.util.NutType;
+import org.nutz.lang.util.PType;
 
 @SuppressWarnings({"unchecked"})
 public class JsonTest {
@@ -940,7 +945,7 @@ public class JsonTest {
         JsonFormat jf = Json.fromJson(JsonFormat.class, "{dateFormat:'yyyyMMhh'}");
         System.out.println(Json.toJson(new NutMap("date", new Date()), jf));
     }
-    
+
     @Test
     public void test_circule_map_pojo() {
         NutMap map = new NutMap();
@@ -948,5 +953,88 @@ public class JsonTest {
         map.put("abc", pojo);
         String j = Json.toJson(map);
         System.out.println(j);
+    }
+
+    @Test
+    public void test_ptype_map() {
+        String str = "{abc:{def:{age:1}}}";
+        Map<String, Map<String, Record>> map = Json.fromJson(new PType<Map<String, Map<String, Record>>>() {},
+                                                             str);
+        assertNotNull(map);
+        assertNotNull(map.get("abc"));
+        assertNotNull(map.get("abc").get("def"));
+        assertEquals(1, map.get("abc").get("def").getInt("age"));
+    }
+
+    @Test
+    public void test_null_as_emtry_string() {
+        NutMap re = new NutMap("abc", null);
+        assertEquals("{abc:null}",
+                     Json.toJson(re,
+                                 JsonFormat.compact().setIgnoreNull(false).setQuoteName(false)));
+        assertEquals("{abc:\"\"}",
+                     Json.toJson(re,
+                                 JsonFormat.compact()
+                                           .setIgnoreNull(false)
+                                           .setQuoteName(false)
+                                           .setNullAsEmtry(true)));
+    }
+
+    @Test
+    public void test_json_all_string() throws IOException {
+        StringWriter sw = new StringWriter();
+        new JsonRenderImpl(sw, JsonFormat.compact()) {
+            public void render(Object value) throws IOException {
+                if (value != null && value instanceof Number) {
+                    getWriter().write(Json.toJson(value.toString()));
+                } else {
+                    super.render(value);
+                }
+            }
+        }.render(new NutMap("age", 1));
+        assertEquals("{\"age\":\"1\"}", sw.getBuffer().toString());
+    }
+
+    @Test
+    public void test_json_timezone() throws IOException {
+        Date date = new Date(0);
+        JsonFormat jf_china = Json.fromJson(JsonFormat.class,
+                                            "{dateFormat:'yyyy-MM-dd HH:mm:ss', timeZone:'GMT+8'}")
+                                  .setCompact(true);
+        JsonFormat jf_yvr = Json.fromJson(JsonFormat.class,
+                                          "{dateFormat:'yyyy-MM-dd HH:mm:ss', timeZone:'GMT-8'}")
+                                .setCompact(true);
+        String json_china = Json.toJson(new NutMap("date", date), jf_china);
+        String json_yvr = Json.toJson(new NutMap("date", date), jf_yvr);
+        System.out.println(json_china);
+        System.out.println(json_yvr);
+        assertEquals("{\"date\":\"1970-01-01 08:00:00\"}", json_china);
+        assertEquals("{\"date\":\"1969-12-31 16:00:00\"}", json_yvr);
+    }
+
+    @Test
+    public void test_json_nullAsEmtry() throws IOException {
+        HashMap<String, Object> data = new HashMap<String, Object>();
+        data.put("xx", null);
+        JsonFormat jsonFormat = new JsonFormat();
+        jsonFormat.setNullAsEmtry(true);
+        String json_str = Json.toJson(data, jsonFormat);
+        System.out.println(json_str);
+        assertEquals("{\"xx\":\"\"}", json_str);
+    }
+    
+    @Test
+    public void test_json_nullStringAsEmtry() throws IOException {
+        Pet pet = Pet.create(null);
+        JsonFormat jsonFormat = new JsonFormat();
+        jsonFormat.setNullStringAsEmpty(true).setActived("name");
+        String json_str = Json.toJson(pet, jsonFormat);
+        System.out.println(json_str);
+    }
+    
+
+    @Test
+    public void test_json_08() throws IOException {
+        assertEquals(8, Json.fromJson(NutMap.class, "{id:08}").getInt("id"));
     }
 }
