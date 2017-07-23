@@ -215,37 +215,7 @@
 	字符串，或者布尔值怎么办？ 呵呵，抱歉，截止到现在，我们还没有解决这个问题，不过很快我们会给出一个设计，
 	并且我可以负责的说，给出新的设计一定会兼容现在的这个用法的。
 
---------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
 工厂方法
 
-	{{{<Java>
-	@IocBean(factory="net.wendal.mqtt.MqttAbcServiceFactory#create", args={"refer:dao"})
-	public class AbcService extends Service {
-		...
-		
-	}
-	
-	// 无任何注解
-	public class MqttAbcServiceFactory {
-		public static AbcService create(Dao dao) {
-			return new XXXXAbcService(dao);
-		}
-	}
-	}}}
-	
-	通过其他bean生成此bean, 类似于spring的factory-bean功能
-	
-	{{{<Java>
-	@IocBean(factory="$snakerConfigure#build")
-	public class SnakerService{}
-	
-	
-	@IocBean(name="snakerConfigure")
-	public class SnakerConfigure {
-		public SnakerService build() {
-			return ....;
-		}
-	}
-	}}}
-	
-	
+	工厂方法已经移入独立的章节

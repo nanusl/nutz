@@ -131,7 +131,7 @@ public class NutDao extends DaoSupport implements Dao {
         final EntityOperator opt = _optBy(first);
         if (null == opt)
             return null;
-        int size = Lang.length(obj);
+        int size = Lang.eleSize(obj);
     	opt.addInsert(opt.entity, first);
         if (size > 1) {
         	if (opt.getPojoListSize() == 1) {
@@ -1144,18 +1144,23 @@ public class NutDao extends DaoSupport implements Dao {
     }
     
     public <T> List<T> queryByJoin(Class<T> classOfT, String regex, Condition cnd) {
-        Pojo pojo = pojoMaker.makeQueryByJoin(holder.getEntity(classOfT), regex)
-                .append(Pojos.Items.cnd(cnd))
-                .addParamsBy("*")
-                .setAfter(new PojoQueryEntityByJoinCallback(regex));
-        expert.formatQuery(pojo);
-        _exec(pojo);
-        List<T> list = pojo.getList(classOfT);
-        if (list != null && list.size() > 0) 
-            for (T t : list) {
-                _fetchLinks(t, regex, false, true, true, null);
-            }
-        return list;
+        return this.queryByJoin(classOfT, regex, cnd, null);
+    }
+    
+    public <T> List<T> queryByJoin(Class<T> classOfT, String regex, Condition cnd, Pager pager) {
+    	Pojo pojo = pojoMaker.makeQueryByJoin(holder.getEntity(classOfT), regex)
+    			.append(Pojos.Items.cnd(cnd))
+    			.addParamsBy("*")
+    			.setPager(pager)
+    			.setAfter(new PojoQueryEntityByJoinCallback(regex));
+    	expert.formatQuery(pojo);
+    	_exec(pojo);
+    	List<T> list = pojo.getList(classOfT);
+    	if (list != null && list.size() > 0) 
+    		for (T t : list) {
+    			_fetchLinks(t, regex, false, true, true, null);
+    		}
+    	return list;
     }
     
     protected Object _fetchLinks(Object t, String regex, boolean visitOne, boolean visitMany, boolean visitManyMany, final Condition cnd) {
