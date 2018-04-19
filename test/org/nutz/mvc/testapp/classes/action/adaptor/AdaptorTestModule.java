@@ -2,6 +2,7 @@ package org.nutz.mvc.testapp.classes.action.adaptor;
 
 import java.io.InputStream;
 import java.io.Reader;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,8 @@ import org.nutz.ioc.annotation.InjectName;
 import org.nutz.ioc.loader.annotation.IocBean;
 import org.nutz.lang.Lang;
 import org.nutz.lang.Streams;
+import org.nutz.lang.util.NutMap;
+import org.nutz.mvc.ViewModel;
 import org.nutz.mvc.adaptor.JsonAdaptor;
 import org.nutz.mvc.adaptor.PairAdaptor;
 import org.nutz.mvc.adaptor.meta.Pet;
@@ -84,6 +87,42 @@ public class AdaptorTestModule extends BaseWebappTest {
         TestCase.assertNotNull(errCtx.getErrors()[0]);
     }
 
+    // 传入的id,会是一个非法的字符串!!
+    @At({"/err/param/anywhere", "/err/param/anywhere/?"})
+    public void errParamAnyWhere(AdaptorErrorContext errCtx, @Param("id") long id) {
+        TestCase.assertNotNull(errCtx);
+        TestCase.assertNotNull(errCtx.getErrors()[1]);
+    }
+
+    // 传入的id,会是一个非法的字符串!!
+    @At({"/err/param/pathargs/?", "/err/param/pathargs/?/?"})
+    public void errParamWithPathArgs(AdaptorErrorContext errCtx, String a, @Param("id") long id) {
+        TestCase.assertNotNull(errCtx);
+        TestCase.assertNotNull(errCtx.getErrors()[2]);
+        TestCase.assertNotNull(a);
+    }
+
+    // 传入的id,会是一个非法的字符串!!
+    @At({"/multi/err/ctxs/?", "/multi/err/ctxs/?/?"})
+    public void multiErrCtxs(AdaptorErrorContext errCtx, String a, AdaptorErrorContext errCtx2, @Param("id") long id, AdaptorErrorContext errCtx3) {
+        TestCase.assertNotNull(errCtx);
+        TestCase.assertNotNull(errCtx.getErrors()[3]);
+        TestCase.assertNotNull(a);
+        TestCase.assertNull(errCtx2);
+        TestCase.assertNull(errCtx3);
+    }
+
+    // 传入的id,会是一个非法的字符串!!
+    @At({"/multi/err/ctxs2/?/?", "/multi/err/ctxs2/?/?/?"})
+    public void multiErrCtxs(String a, AdaptorErrorContext errCtx, AdaptorErrorContext errCtx2, String b, @Param("id") long id, AdaptorErrorContext errCtx3) {
+        TestCase.assertNotNull(errCtx);
+        TestCase.assertNotNull(errCtx.getErrors()[4]);
+        TestCase.assertNotNull(a);
+        TestCase.assertNotNull(b);
+        TestCase.assertNull(errCtx2);
+        TestCase.assertNull(errCtx3);
+    }
+
     @At("/json/type")
     @AdaptBy(type = JsonAdaptor.class)
     public void jsonMapType(Map<String, Double> map) {
@@ -119,7 +158,20 @@ public class AdaptorTestModule extends BaseWebappTest {
     public Object test_param_without_param(String uid, String[] uids, HttpServletRequest req) {
         return uids;
     }
-    
+
+    @At("/object_without_param")
+    @Ok("json:compact")
+    public Object test_object_without_param(Pet pet, HttpServletRequest req) {
+        return pet;
+    }
+
+    @At("/path_args_and_object_without_param/?")
+    @Ok("json:compact")
+    public Object test_path_args_and_object_without_param(String name, Pet pet, HttpServletRequest req) {
+        pet.setName(name);
+        return pet;
+    }
+
     @At("/issue1069")
     @Ok("raw")
     public Object test_issue1069(@Param("..")Issue1069 issue1069) {
@@ -146,5 +198,29 @@ public class AdaptorTestModule extends BaseWebappTest {
     @AdaptBy(type=PairAdaptor.class)
     public Object issue1277(@Param("..")Issue1277 issue) {
         return issue;
+    }
+    
+
+    @At("/issue1310")
+    @Ok("json")
+    @AdaptBy(type=PairAdaptor.class)
+    public Object issue1310(@Param("::")Issue1277 issue) {
+        return issue;
+    }
+    
+    
+    @At("/issue13xx")
+    @Ok("re")
+    public String re_view_with_NutMap(@Param("..")NutMap map, ViewModel viewModel) {
+        viewModel.put("id", 1); // 如果正确, 应该会输出 {id:1}
+        map.put("id", 2); // 如果走了NutMap的话,应该输出 {id:2}
+        return "json";
+    }
+    
+    @Ok("raw")
+    @At("/jdk8/localdt")
+    public String localdatetime(@Param("date")LocalDateTime localDateTime) {
+        System.out.println(localDateTime);
+        return localDateTime.toString();
     }
 }

@@ -37,7 +37,6 @@ import org.nutz.log.Logs;
 /**
  * @author zozoh(zozohtnt@gmail.com)
  * @author wendal(wendal1985@gmail.com)
- * 
  */
 public abstract class Sender implements Callable<Response> {
 
@@ -78,6 +77,8 @@ public abstract class Sender implements Callable<Response> {
     }
 
     protected Request request;
+    
+    private int connTimeout;
 
     private int timeout;
 
@@ -103,18 +104,12 @@ public abstract class Sender implements Callable<Response> {
         Response rep = null;
         if (reHeaders != null) {
             rep = new Response(conn, reHeaders);
+            String encoding = conn.getContentEncoding();
             if (rep.isOK()) {
                 InputStream is1 = conn.getInputStream();
                 InputStream is2 = null;
-                String encoding = conn.getContentEncoding();
                 // 如果采用了压缩,则需要处理否则都是乱码
-                if (encoding != null && encoding.contains("gzip")) {
-                    is2 = new GZIPInputStream(is1);
-                } else if (encoding != null && encoding.contains("deflate")) {
-                    is2 = new InflaterInputStream(is1, new Inflater(true));
-                } else {
-                    is2 = is1;
-                }
+                is2 = detectStreamEncode(encoding, is1);
 
                 BufferedInputStream is = new BufferedInputStream(is2);
                 rep.setStream(is);
@@ -122,11 +117,11 @@ public abstract class Sender implements Callable<Response> {
 
             else {
                 try {
-                    rep.setStream(conn.getInputStream());
+                    rep.setStream(detectStreamEncode(encoding, conn.getInputStream()));
                 }
                 catch (IOException e) {
                     try {
-                        rep.setStream(conn.getErrorStream());
+                        rep.setStream(detectStreamEncode(encoding, conn.getErrorStream()));
                     }
                     catch (Exception e1) {
                         rep.setStream(new VoidInputStream());
@@ -137,6 +132,16 @@ public abstract class Sender implements Callable<Response> {
         if (this.interceptor != null)
             this.interceptor.afterResponse(request, conn, rep);
         return rep;
+    }
+    
+    protected InputStream detectStreamEncode(String encoding, InputStream ins) throws IOException {
+        if (encoding != null && encoding.contains("gzip")) {
+            return new GZIPInputStream(ins);
+        } else if (encoding != null && encoding.contains("deflate")) {
+            return new InflaterInputStream(ins, new Inflater(true));
+        } else {
+            return ins;
+        }
     }
 
     protected Map<String, String> getResponseHeader() throws IOException {
@@ -160,6 +165,7 @@ public abstract class Sender implements Callable<Response> {
         if (this.interceptor != null)
             this.interceptor.beforeConnect(request);
         ProxySwitcher proxySwitcher = Http.proxySwitcher;
+        int connTime = connTimeout > 0 ? connTimeout : Default_Conn_Timeout;
         if (proxySwitcher != null) {
             try {
                 Proxy proxy = proxySwitcher.getProxy(request);
@@ -168,7 +174,7 @@ public abstract class Sender implements Callable<Response> {
                         Socket socket = null;
                         try {
                             socket = new Socket();
-                            socket.connect(proxy.address(), 5 * 1000);
+                            socket.connect(proxy.address(), connTime); //5 * 1000
                             OutputStream out = socket.getOutputStream();
                             out.write('\n');
                             out.flush();
@@ -180,7 +186,7 @@ public abstract class Sender implements Callable<Response> {
                     }
                     log.debug("connect via proxy : " + proxy + " for " + request.getUrl());
                     conn = (HttpURLConnection) request.getUrl().openConnection(proxy);
-                    conn.setConnectTimeout(Default_Conn_Timeout);
+                    conn.setConnectTimeout(connTime);
                     conn.setInstanceFollowRedirects(followRedirects);
                     if (timeout > 0)
                         conn.setReadTimeout(timeout);
@@ -210,7 +216,7 @@ public abstract class Sender implements Callable<Response> {
                 host += ":" + url.getPort();
             conn.addRequestProperty("Host", host);
         }
-        conn.setConnectTimeout(Default_Conn_Timeout);
+        conn.setConnectTimeout(connTime);
         if (request.getMethodString() == null)
         	conn.setRequestMethod(request.getMethod().name());
         else
@@ -238,6 +244,15 @@ public abstract class Sender implements Callable<Response> {
 
     public int getTimeout() {
         return timeout;
+    }
+    
+    public Sender setConnTimeout(int connTimeout) {
+        this.connTimeout = connTimeout;
+        return this;
+    }
+    
+    public int getConnTimeout() {
+        return connTimeout;
     }
 
     public Sender setInterceptor(HttpReqRespInterceptor interceptor) {

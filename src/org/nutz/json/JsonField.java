@@ -41,4 +41,8 @@ public @interface JsonField {
     String dateFormat() default "";
     
     String dataFormat() default "";
+    
+    String timeZone() default "";
+    
+    String locale() default "";
 }

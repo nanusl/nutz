@@ -5,7 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,13 +41,19 @@ public class NutSql extends NutStatement implements Sql {
     protected VarIndex paramIndex;
     protected Map<String, ValueAdaptor> customValueAdaptor;
     protected List<PItem> items;
+    protected char[] placeholder;
+    
+    public NutSql() {
+        this(null, null);
+    }
 
     public NutSql(String source) {
         this(source, null);
     }
 
     public NutSql(String source, SqlCallback callback) {
-        this.setSourceSql(source);
+        if (source != null)
+            this.setSourceSql(source);
         this.callback = callback;
         this.vars = new SimpleVarSet();
         this.rows = new ArrayList<VarSet>();
@@ -57,7 +63,7 @@ public class NutSql extends NutStatement implements Sql {
     }
 
     public void setSourceSql(String sql) {
-        this.sourceSql = sql;
+        this.sourceSql = sql.trim();
         SqlLiteral literal = literal();
         this.varIndex = literal.getVarIndexes();
         this.paramIndex = literal.getParamIndexes();
@@ -81,12 +87,13 @@ public class NutSql extends NutStatement implements Sql {
                 }
             }
         }
+        this.items = new ArrayList<PItem>();
         for (int i = 0; i < tmp.length; i++) {
             if (tmp[i] == null) {
                 tmp[i] = new StaticPItem(ss[i], true);
             }
+            items.add(tmp[i]);
         }
-        this.items = Arrays.asList(tmp);
     }
 
     protected int _params_count() {
@@ -301,7 +308,7 @@ public class NutSql extends NutStatement implements Sql {
                 return off + 1;
             } else if (val instanceof PItem) {
                 return ((PItem) val).joinAdaptor(en, adaptors, off);
-            } else if (val.getClass().isArray()) {
+            } else if (val.getClass().isArray() || Collection.class.isAssignableFrom(val.getClass())) {
                 int len = Lang.eleSize(val);
                 Lang.each(val, new Each<Object>() {
                     public void invoke(int index, Object ele, int length) {
@@ -360,7 +367,9 @@ public class NutSql extends NutStatement implements Sql {
      * 若需要定制参数字符和变量字符,覆盖本方法,通过SqlLiteral的构造方法指定之
      */
     protected SqlLiteral literal() {
-        return new SqlLiteral().valueOf(sourceSql);
+        if (placeholder == null)
+            return new SqlLiteral().valueOf(sourceSql);
+        return new SqlLiteral(placeholder[0], placeholder[1]).valueOf(sourceSql);
     }
     
     public Sql setParam(String name, Object value) {
@@ -375,5 +384,11 @@ public class NutSql extends NutStatement implements Sql {
     
     public Record getOutParams() {
         return getContext().attr(Record.class, "OUT");
+    }
+    
+    public Sql changePlaceholder (char param, char var) {
+        placeholder = new char[]{param, var};
+        setSourceSql(getSourceSql());
+        return null;
     }
 }

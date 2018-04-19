@@ -1,5 +1,8 @@
 package org.nutz.lang.reflect;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -10,10 +13,12 @@ import org.nutz.dao.impl.DaoSupport;
 import org.nutz.dao.impl.NutDao;
 import org.nutz.dao.sql.Sql;
 import org.nutz.dao.test.meta.Pet;
+import org.nutz.json.Json;
 import org.nutz.lang.Lang;
 import org.nutz.lang.Mirror;
 import org.nutz.lang.Stopwatch;
 import org.nutz.lang.born.Borning;
+import org.nutz.lang.util.Disks;
 
 import com.alibaba.druid.pool.DruidDataSource;
 
@@ -27,7 +32,7 @@ public class FastClassFactoryTest extends Assert {
 
     @Test
     public void testInvokeObjectMethodObjectArray() throws Throwable {
-        DefaultClassDefiner.debugDir = "/nutz_fastclass/";
+        DefaultClassDefiner.debugDir = Disks.normalize("~/nutz_fastclass/");
         FastMethod fc = FastMethodFactory.make(Pet.class.getConstructor());
         fc = FastMethodFactory.make(Pet.class.getConstructor());
         //net.sf.cglib.reflect.FastClass fc2 = net.sf.cglib.reflect.FastClass.create(Pet.class);
@@ -118,6 +123,20 @@ public class FastClassFactoryTest extends Assert {
         FastClass fc = FastClassFactory.get(DaoSupport.class);
         fc = FastClassFactory.get(NutDao.class);
         fc.invoke(new NutDao(), "execute", new Class[]{Sql.class}, new Object[]{null});
+    }
+    
+    @Test
+    public void test_issue_1382() {
+        try {
+            Map<Object, Object> map = new HashMap<Object, Object>();
+            map.put("a", 1);
+            map.put("b", 2);
+            map.put("c", 3);
+            System.out.println(Json.toJson(map.entrySet()));
+        }
+        finally {
+            
+        }
     }
 
     public static void main(String[] args) throws Exception {

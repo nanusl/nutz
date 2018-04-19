@@ -4,9 +4,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.Format;
 import java.text.SimpleDateFormat;
+import java.util.Locale;
+import java.util.TimeZone;
 
 import org.nutz.json.JsonField;
 import org.nutz.json.JsonIgnore;
@@ -17,6 +20,7 @@ import org.nutz.lang.eject.EjectByGetter;
 import org.nutz.lang.eject.Ejecting;
 import org.nutz.lang.inject.InjectBySetter;
 import org.nutz.lang.inject.Injecting;
+import org.nutz.lang.reflect.ReflectTool;
 
 public class JsonEntityField {
 	
@@ -45,6 +49,8 @@ public class JsonEntityField {
     private Format dataFormat;
     
     private Mirror<?> mirror;
+    
+    private Class<?> declaringClass;
 
     public boolean isForceString() {
         return forceString;
@@ -65,9 +71,10 @@ public class JsonEntityField {
     /**
      * 根据名称获取字段实体, 默认以set优先
      */
-    public static JsonEntityField eval(String name, Method getter, Method setter) {
+    public static JsonEntityField eval(Mirror<?> mirror, String name, Method getter, Method setter) {
         JsonEntityField jef = new JsonEntityField();
-        jef.genericType = getter.getGenericReturnType();
+        jef.declaringClass = mirror.getType();
+        jef.setGenericType(getter.getGenericReturnType());
         jef.name = name;
         jef.ejecting = new EjectByGetter(getter);
         jef.injecting = new InjectBySetter(setter);
@@ -75,9 +82,10 @@ public class JsonEntityField {
         return jef;
     }
 
-    public static JsonEntityField eval(String name, Type type, Ejecting ejecting, Injecting injecting) {
+    public static JsonEntityField eval(Mirror<?> mirror, String name, Type type, Ejecting ejecting, Injecting injecting) {
         JsonEntityField jef = new JsonEntityField();
-        jef.genericType = type;
+        jef.genericType = mirror.getType();
+        jef.setGenericType(type);
         jef.name = name;
         jef.ejecting = ejecting;
         jef.injecting = injecting;
@@ -101,7 +109,8 @@ public class JsonEntityField {
         JsonField jf = fld.getAnnotation(JsonField.class);
 
         JsonEntityField jef = new JsonEntityField();
-        jef.genericType = Lang.getFieldType(mirror, fld);
+        jef.declaringClass = mirror.getType();
+        jef.setGenericType(Lang.getFieldType(mirror, fld));
         jef.name = Strings.sBlank(null == jf ? null : jf.value(), fld.getName());
         jef.ejecting = mirror.getEjecting(fld.getName());
         jef.injecting = mirror.getInjecting(fld.getName());
@@ -126,7 +135,17 @@ public class JsonEntityField {
                 if(jfmirror.isNumber()){
                     jef.dataFormat = new DecimalFormat(dataFormat);
                 }else if(jfmirror.isDateTimeLike()){
-                    jef.dataFormat = new SimpleDateFormat(dataFormat);
+                    DateFormat df = null;
+                    if (Strings.isBlank(jf.locale())) {
+                        df = new SimpleDateFormat(dataFormat);
+                    }
+                    else {
+                        df = new SimpleDateFormat(dataFormat, Locale.forLanguageTag(jf.locale()));
+                    }
+                    if (!Strings.isBlank(jf.timeZone())) {
+                        df.setTimeZone(TimeZone.getTimeZone(jf.timeZone()));
+                    }
+                    jef.dataFormat = df;
                 }
             }
         }
@@ -186,5 +205,17 @@ public class JsonEntityField {
     
     public Mirror<?> getMirror() {
         return mirror;
+    }
+    
+    public void setGenericType(Type genericType) {
+        this.genericType = ReflectTool.getInheritGenericType(declaringClass, genericType);;
+    }
+    
+    public void setInjecting(Injecting injecting) {
+        this.injecting = injecting;
+    }
+    
+    public void setEjecting(Ejecting ejecting) {
+        this.ejecting = ejecting;
     }
 }

@@ -1,7 +1,7 @@
 package org.nutz.dao;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.nutz.dao.entity.Entity;
@@ -12,6 +12,7 @@ import org.nutz.json.Json;
 import org.nutz.lang.Mirror;
 import org.nutz.lang.Strings;
 import org.nutz.lang.util.Callback2;
+import org.nutz.lang.util.NutMap;
 
 /**
  * 名值链。
@@ -22,8 +23,10 @@ import org.nutz.lang.util.Callback2;
  * @author Wendal(wendal1985@gmail.com)
  * @author lzxz1234
  */
-public abstract class Chain {
+public abstract class Chain implements Serializable {
     
+    private static final long serialVersionUID = 1L;
+
     /**
      * 建立一条名值链开始的一环
      * 
@@ -295,15 +298,15 @@ public abstract class Chain {
         return chain;
     }
     
-    public static class DefaultChain extends Chain {
-        private Entry head;
-        private Entry current;
-        private Entry tail;
+    public static class DefaultChain extends Chain implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private ChainEntry head;
+        private ChainEntry current;
+        private ChainEntry tail;
         private int size;
         
         public DefaultChain(String name, Object value) {
-            
-            this.head = new Entry(name, value);
+            this.head = new ChainEntry(name, value);
             this.current = head;
             this.tail = head;
             this.size = 1;
@@ -327,7 +330,7 @@ public abstract class Chain {
             return current.adaptor;
         }
         public Chain add(String name, Object value) {
-            tail.next = new Entry(name, value);
+            tail.next = new ChainEntry(name, value);
             tail = tail.next;
             size ++;
             return this;
@@ -355,7 +358,7 @@ public abstract class Chain {
             return current.special;
         }
         public boolean isSpecial() {
-            Entry entry = head;
+            ChainEntry entry = head;
             do {
                 if(entry.special) {
                     return true;
@@ -364,17 +367,19 @@ public abstract class Chain {
             return false;
         }
         public Map<String, Object> toMap() {
-            Map<String, Object> map = new LinkedHashMap<String, Object>();
-            Entry current = head;
+            NutMap map = new NutMap();
+            ChainEntry current = head;
             while (current != null) {
                 map.put(current.name, current.value);
+                if (current.adaptor != null)
+                	map.put("."+current.name+".adaptor", current.adaptor);
                 current = current.next;
             }
             return map;
         }
         public Chain updateBy(Entity<?> entity) {
             if (null != entity) {
-                Entry current = head;
+                ChainEntry current = head;
                 while (current != null) {
                     MappingField ef = entity.getField(current.name);
                     if (null != ef) {
@@ -388,7 +393,7 @@ public abstract class Chain {
         public <T> T toObject(Class<T> classOfT) {
             Mirror<T> mirror = Mirror.me(classOfT);
             T re = mirror.born();
-            Entry current = head;
+            ChainEntry current = head;
             while (current != null) {
                 mirror.setValue(re, current.name, current.value);
                 current = current.next;
@@ -397,13 +402,14 @@ public abstract class Chain {
         }
     }
     
-    public static class Entry {
+    public static class ChainEntry implements Serializable {
+        private static final long serialVersionUID = 1L;
         protected String name;
-        Object value;
-        ValueAdaptor adaptor;
-        boolean special;
-        Entry next;
-        public Entry(String name, Object value) {
+        protected Object value;
+        protected transient ValueAdaptor adaptor;
+        protected boolean special;
+        protected ChainEntry next;
+        public ChainEntry(String name, Object value) {
             this.name = name;
             this.value = value;
         }

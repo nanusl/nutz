@@ -1,4 +1,4 @@
-#title: 图像处理小军刀
+#title: 图像基本处理
 #author:wendal(wendal1985@gmail.com), pangwu86(pangwu86@gmail.com)
 #index:0,1
 ------------------------------------------------------------------------
@@ -7,7 +7,6 @@
 	这个package一直有,老久了,只是一直都是我们内部自己用,没有直接写出来. 
 	
 	直接原文拷贝啦,从http,哈哈.
-	
 	
 ------------------------------------------------------------------------
 图像读取
@@ -65,45 +64,30 @@
 	}}}
 
 ------------------------------------------------------------------------
-添加水印
+图像扭曲
 
-    添加位置默认提供9个选择
+	可以手动设定扭曲级别，数值越大扭曲程度越高，同时还需设定背景色，用来填充扭曲后漏出来的部分。
+	
+	{{{<JAVA>
+	img = Images.twist(img, 1, "#FFF");
+	}}}
 
-    # Images.WATERMARK_TOP_LEFT 
-    # Images.WATERMARK_TOP_CENTER 
-    # Images.WATERMARK_TOP_RIGHT
-    # Images.WATERMARK_CENTER_LEFT
-    # Images.WATERMARK_CENTER
-    # Images.WATERMARK_CENTER_RIGHT
-    # Images.WATERMARK_BOTTOM_LEFT
-    # Images.WATERMARK_BOTTOM_CENTER
-    # Images.WATERMARK_BOTTOM_RIGHT
+	原图:
 
+	<twist.jpg>
 
-    右下角添加图片水印, 50%透明度，20像素边距
+	扭曲值为1：
 
-    {{{<JAVA>
-    img = Images.addWatermark(img, watermarkImg,  0.5f, Images.WATERMARK_BOTTOM_RIGHT, 20);
-    }}}
+	<twist1.jpg>
 
-------------------------------------------------------------------------
-生成头像
+	扭曲值为3：
 
-    根据文字生成图片的小工具，适用于一些生成头像的场景。
+	<twist3.jpg>
 
+	扭曲值为5：
 
-    直接生成黑底白字
-
-    {{{<JAVA>
-    img = Images.createAvatar("王小二");
-    }}}
-
-    手动设置图片大小，文字/背景色，字体，字体样式, 字体大小等
-
-    {{{<JAVA>
-    img = Images.createAvatar("王小二", 128, "rgba(255,0,0,0.8)", "rgba(0,0,0,0.1)", "微软雅黑", 64, Font.BOLD);
-    }}}
-
+	<twist5.jpg>
+	
 ------------------------------------------------------------------------
 输出文件
 

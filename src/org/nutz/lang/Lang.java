@@ -14,6 +14,7 @@ import java.io.PrintStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.Writer;
+import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
@@ -39,6 +40,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -51,10 +53,10 @@ import org.nutz.castor.Castors;
 import org.nutz.castor.FailToCastObjectException;
 import org.nutz.dao.entity.annotation.Column;
 import org.nutz.json.Json;
+import org.nutz.lang.reflect.ReflectTool;
 import org.nutz.lang.stream.StringInputStream;
 import org.nutz.lang.stream.StringOutputStream;
 import org.nutz.lang.stream.StringWriter;
-import org.nutz.lang.util.ClassTools;
 import org.nutz.lang.util.Context;
 import org.nutz.lang.util.NutMap;
 import org.nutz.lang.util.NutType;
@@ -1182,7 +1184,9 @@ public abstract class Lang {
             }
 
             if (null != v) {
-                Class<?> ft = field.getType();
+                //Class<?> ft = field.getType();
+                //获取泛型基类中的字段真实类型, https://github.com/nutzam/nutz/issues/1288
+                Class<?> ft = ReflectTool.getGenericFieldType(toType, field);
                 Object vv = null;
                 // 集合
                 if (v instanceof Collection) {
@@ -1195,7 +1199,9 @@ public abstract class Lang {
                     else {
                         // 创建
                         Collection newCol;
-                        Class eleType = Mirror.getGenericTypes(field, 0);
+                        //Class eleType = Mirror.getGenericTypes(field, 0);
+                        Class<?> eleType = ReflectTool.getParameterRealGenericClass(toType,
+                                field.getGenericType(),0);
                         if (ft == List.class) {
                             newCol = new ArrayList(c.size());
                         } else if (ft == Set.class) {
@@ -1233,10 +1239,16 @@ public abstract class Lang {
                         }
                     }
                     // 赋值
-                    final Class<?> valType = Mirror.getGenericTypes(field, 1);
+                    //final Class<?> valType = Mirror.getGenericTypes(field, 1);
+                    //map的key和value字段类型
+                    final Class<?> keyType = ReflectTool.getParameterRealGenericClass(toType,
+                            field.getGenericType(),0);
+                    final Class<?> valType =ReflectTool.getParameterRealGenericClass(toType,
+                            field.getGenericType(),1);
                     each(v, new Each<Entry>() {
                         public void invoke(int i, Entry en, int length) {
-                            map.put(en.getKey(), Castors.me().castTo(en.getValue(), valType));
+                            map.put(Castors.me().castTo(en.getKey(), keyType),
+                                    Castors.me().castTo(en.getValue(), valType));
                         }
                     });
                     vv = map;
@@ -2065,27 +2077,12 @@ public abstract class Lang {
     }
 
     /**
-     * 当前运行的 Java 虚拟机是 JDK6 的话，则返回 true
+     * 当前运行的 Java 虚拟机是 JDK6 及更高版本的话，则返回 true
      *
      * @return true 如果当前运行的 Java 虚拟机是 JDK6
      */
     public static boolean isJDK6() {
-        InputStream is = null;
-        try {
-            String classFileName = Lang.class.getName().replace('.', '/') + ".class";
-            is = ClassTools.getClassLoader().getResourceAsStream(classFileName);
-            if (is == null)
-                is = ClassTools.getClassLoader().getResourceAsStream("/" + classFileName);
-            if (is != null && is.available() > 8) {
-                is.skip(7);
-                return is.read() > 49;
-            }
-        }
-        catch (Throwable e) {}
-        finally {
-            Streams.safeClose(is);
-        }
-        return false;
+        return JdkTool.getMajorVersion() >= 6;
     }
 
     /**
@@ -2789,6 +2786,50 @@ public abstract class Lang {
         }
         catch (IOException e) {
             return null;
+        }
+    }
+    
+    public static class JdkTool {
+        public static String getVersionLong() {
+            Properties sys = System.getProperties();
+            return sys.getProperty("java.version");
+        }
+        public static int getMajorVersion() {
+            String ver = getVersionLong();
+            if (Strings.isBlank(ver))
+                return 6;
+            String[] tmp = ver.split("\\.");
+            if (tmp.length < 2)
+                return 6;
+            int t = Integer.parseInt(tmp[0]);
+            if (t > 1)
+                return t;
+            return Integer.parseInt(tmp[1]);
+        }
+        public static boolean isEarlyAccess() {
+            String ver = getVersionLong();
+            if (Strings.isBlank(ver))
+                return false;
+            return ver.contains("-ea");
+        }
+        
+        /**
+         * 获取进程id
+         * @param fallback 如果获取失败,返回什么呢?
+         * @return 进程id
+         */
+        public static String getProcessId(final String fallback) {
+            final String jvmName = ManagementFactory.getRuntimeMXBean().getName();
+            final int index = jvmName.indexOf('@');
+            if (index < 1) {
+                return fallback;
+            }
+            try {
+                return Long.toString(Long.parseLong(jvmName.substring(0, index)));
+            }
+            catch (NumberFormatException e) {
+            }
+            return fallback;
         }
     }
 }

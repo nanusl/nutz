@@ -29,13 +29,13 @@ public abstract class NutStatement implements DaoStatement {
 
     private static final long serialVersionUID = 1L;
 
-    private Entity<?> entity;
+    private transient Entity<?> entity;
 
-    private SqlContext context;
+    private transient SqlContext context;
 
     private SqlType sqlType;
     
-    protected JdbcExpert expert;
+    protected transient JdbcExpert expert;
     
     public NutStatement() {
         this.context = new SqlContext();
@@ -195,7 +195,7 @@ public abstract class NutStatement implements DaoStatement {
         StringBuilder sb = new StringBuilder(sql);
         // 准备打印参数表
         Object[][] mtrx = this.getParamMatrix();
-        SqlFormat format = Daos.getSqlFormat().clone();
+        SqlFormat format = Daos.getSqlFormat();
         if (null != mtrx && mtrx.length > 0 && mtrx[0].length > 0) {
             if (format.isPrintParam()) {
                 // 计算每列最大宽度，以及获取列参数的内容
@@ -259,21 +259,23 @@ public abstract class NutStatement implements DaoStatement {
         if (mtrx.length > 0) {
             for (; i < mtrx[0].length; i++) {
                 sb.append(ss[i]);
-                Object obj = param2obj(mtrx[0][i]);
-                sb.append(Sqls.formatFieldValue(obj));
+                Object tmp = mtrx[0][i];
+                if (tmp == null) {
+                    sb.append("NULL");
+                }
+                else if (tmp instanceof Number || tmp instanceof Boolean) {
+                    sb.append(tmp.toString());
+                } else {
+                    sb.append(Sqls.formatFieldValue(param2String(tmp)));
+                }
             }
         }
         for (; i < ss.length; i++)
         	sb.append(ss[i]);
         return sb.toString();
     }
-    
-    protected String param2String(Object obj) {
-        obj = param2obj(obj);
-        return obj instanceof String ? (String)obj : Castors.me().castToString(obj);
-    }
 
-    protected Object param2obj(Object obj) {
+    protected String param2String(Object obj) {
         if (obj == null)
             return "NULL";
         if (obj instanceof CharSequence)
@@ -307,7 +309,7 @@ public abstract class NutStatement implements DaoStatement {
             } else if (obj instanceof Reader) {
                 obj = "*Reader@" + obj.hashCode();
             }
-            return obj;
+            return Castors.me().castToString(obj);
         }
     }
 

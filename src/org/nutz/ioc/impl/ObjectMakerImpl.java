@@ -13,7 +13,6 @@ import org.nutz.ioc.ValueProxy;
 import org.nutz.ioc.meta.IocEventSet;
 import org.nutz.ioc.meta.IocField;
 import org.nutz.ioc.meta.IocObject;
-import org.nutz.ioc.trigger.MethodEventTrigger;
 import org.nutz.ioc.weaver.DefaultWeaver;
 import org.nutz.ioc.weaver.FieldInjector;
 import org.nutz.lang.Lang;
@@ -22,6 +21,8 @@ import org.nutz.lang.Strings;
 import org.nutz.lang.born.Borning;
 import org.nutz.lang.born.MethodBorning;
 import org.nutz.lang.born.MethodCastingBorning;
+import org.nutz.lang.reflect.FastClassFactory;
+import org.nutz.lang.reflect.FastMethod;
 
 /**
  * 在这里，需要考虑 AOP
@@ -32,9 +33,6 @@ import org.nutz.lang.born.MethodCastingBorning;
 public class ObjectMakerImpl implements ObjectMaker {
 
     public ObjectProxy make(final IocMaking ing, IocObject iobj) {
-        // 获取 Mirror， AOP 将在这个方法中进行
-        Mirror<?> mirror = ing.getMirrors().getMirror(iobj.getType(),
-                                                      ing.getObjectName());
 
         // 获取配置的对象事件集合
         IocEventSet iocEventSet = iobj.getEvents();
@@ -46,21 +44,12 @@ public class ObjectMakerImpl implements ObjectMaker {
         if (iobj.isSingleton() && null != ing.getObjectName())
             ing.getContext().save(iobj.getScope(), ing.getObjectName(), op);
 
-        // 为对象代理设置触发事件
-        if (null != iobj.getEvents()) {
-            op.setFetch(createTrigger(mirror, iocEventSet.getFetch()));
-            op.setDepose(createTrigger(mirror, iocEventSet.getDepose()));
-        }
 
         try {
             // 准备对象的编织方式
             DefaultWeaver dw = new DefaultWeaver();
+            dw.setListeners(ing.getListeners());
             op.setWeaver(dw);
-
-            // 为编织器设置事件触发器：创建时
-            if (null != iobj.getEvents()) {
-                dw.setCreate(createTrigger(mirror, iocEventSet.getCreate()));
-            }
 
             // 构造函数参数
             ValueProxy[] vps = new ValueProxy[Lang.eleSize(iobj.getArgs())];
@@ -77,6 +66,8 @@ public class ObjectMakerImpl implements ObjectMaker {
                     hasNullArg = true;
                 }
             }
+            // 获取 Mirror， AOP 将在这个方法中进行
+            Mirror<?> mirror = null;
 
             // 缓存构造函数
             if (iobj.getFactory() != null) {
@@ -91,20 +82,32 @@ public class ObjectMakerImpl implements ObjectMaker {
                     });
                 } else {
                     Mirror<?> mi = Mirror.me(Lang.loadClass(ss[0]));
-
+                    Method m;
                     if (hasNullArg) {
-                        Method m = (Method) Lang.first(mi.findMethods(ss[1],args.length));
+                        m = (Method) Lang.first(mi.findMethods(ss[1],args.length));
                         if (m == null)
                             throw new IocException(ing.getObjectName(), "Factory method not found --> ", iobj.getFactory());
                         dw.setBorning(new MethodCastingBorning<Object>(m));
                     } else {
-                        Method m = mi.findMethod(ss[1], args);
+                        m = mi.findMethod(ss[1], args);
                         dw.setBorning(new MethodBorning<Object>(m));
                     }
+                    if (iobj.getType() == null)
+                        iobj.setType(m.getReturnType());
                 }
-
+                if (iobj.getType() != null)
+                    mirror = ing.getMirrors().getMirror(iobj.getType(), ing.getObjectName());
             } else {
+                mirror = ing.getMirrors().getMirror(iobj.getType(), ing.getObjectName());
                 dw.setBorning((Borning<?>) mirror.getBorning(args));
+            }
+            
+
+            // 为对象代理设置触发事件
+            if (null != iobj.getEvents()) {
+                op.setFetch(createTrigger(mirror, iocEventSet.getFetch()));
+                op.setDepose(createTrigger(mirror, iocEventSet.getDepose()));
+                dw.setCreate(createTrigger(mirror, iocEventSet.getCreate()));
             }
 
             // 如果这个对象是容器中的单例，那么就可以生成实例了
@@ -154,8 +157,7 @@ public class ObjectMakerImpl implements ObjectMaker {
     }
 
     @SuppressWarnings({"unchecked"})
-    private static IocEventTrigger<Object> createTrigger(Mirror<?> mirror,
-                                                         String str) {
+    private static IocEventTrigger<Object> createTrigger(Mirror<?> mirror, final String str) {
         if (Strings.isBlank(str))
             return null;
         if (str.contains(".")) {
@@ -167,12 +169,20 @@ public class ObjectMakerImpl implements ObjectMaker {
                 throw Lang.wrapThrow(e);
             }
         }
-        try {
-            return new MethodEventTrigger(mirror.findMethod(str));
-        }
-        catch (NoSuchMethodException e) {
-            throw Lang.wrapThrow(e);
-        }
+        return new IocEventTrigger<Object>() {
+        	protected FastMethod fm;
+			public void trigger(Object obj) {
+				try {
+					if (fm == null) {
+						Method method = Mirror.me(obj).findMethod(str);
+						fm = FastClassFactory.get(method);
+					}
+					fm.invoke(obj);
+				} catch (Exception e) {
+					throw Lang.wrapThrow(e);
+				}
+			}
+        };
     }
 
 }

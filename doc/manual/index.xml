@@ -121,9 +121,11 @@
 	</doc>
 	<doc path="http" title="Http轻客户端">
 		<doc path="overview.man"></doc>
+		<doc path="httpdns.man"></doc>
 	</doc>
 	<doc path="img" title="图像处理小军刀">
 		<doc path="overview.man"></doc>
+		<doc path="advanced.man"></doc>
 	</doc>
 	<doc path="nosql" title="NoSQL相关">
 		<doc path="jedis.man"></doc>
@@ -140,6 +142,11 @@
 		<doc path="daocache.man"></doc>
 		<doc path="jedis.man"></doc>
 	</doc>
+	<doc path="boot" title="NutzBoot">
+		<doc path="overview.man"></doc>
+		<doc path="helloworld.man"></doc>
+		<doc path="write_starter.man"></doc>
+	</doc>
 	<doc path="testing" title="单元测试">
 		<doc path="junit_testing.man"></doc>
 	</doc>
@@ -153,6 +160,8 @@
 		<doc path="be_committer.man"/>
 	</doc>
 	<doc path="history" title="版本历史">
+	    <doc path="1_r_65.man"/>
+		<doc path="1_r_63.man"/>
 		<doc path="1_r_62.man"/>
 		<doc path="1_r_61.man"/>
 		<doc path="1_r_60.man"/>

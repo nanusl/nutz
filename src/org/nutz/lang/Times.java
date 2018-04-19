@@ -3,9 +3,15 @@ package org.nutz.lang;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.nutz.lang.util.Regex;
 
 /**
  * 一些时间相关的帮助函数
@@ -76,45 +82,71 @@ public abstract class Times {
      */
     public static TmInfo Ti(int sec) {
         TmInfo ti = new TmInfo();
-        ti.value = sec;
-        ti.hour = Math.min(23, sec / 3600);
-        ti.minute = Math.min(59, (sec - (ti.hour * 3600)) / 60);
-        ti.second = Math.min(59, sec - (ti.hour * 3600) - (ti.minute * 60));
+        ti.valueInMillisecond = sec * 1000;
+        ti.__recound_by_valueInMilliSecond();
         return ti;
     }
+
+    /**
+     * 将一个毫秒数（天中），转换成一个时间对象:
+     * 
+     * @param ams
+     *            毫秒数
+     * @return 时间对象
+     */
+    public static TmInfo Tims(long ams) {
+        TmInfo ti = new TmInfo();
+        ti.valueInMillisecond = (int) ams;
+        ti.__recound_by_valueInMilliSecond();
+        return ti;
+    }
+
+    private static final Pattern _p_tm = Pattern.compile("^([0-9]{1,2}):([0-9]{1,2})(:([0-9]{1,2})([.,]([0-9]{1,3}))?)?$");
 
     /**
      * 将一个时间字符串，转换成一个一天中的绝对时间对象
      * 
      * @param ts
-     *            时间字符串，符合格式 "HH:mm:ss" 或者 "HH:mm"
+     *            时间字符串，符合格式
+     *            <ul>
+     *            <li>"HH:mm:ss"
+     *            <li>"HH:mm"
+     *            <li>"HH:mm:ss.SSS"
+     *            <li>"HH:mm:ss,SSS"
+     *            </ul>
      * @return 时间对象
      */
     public static TmInfo Ti(String ts) {
-        String[] tss = Strings.splitIgnoreBlank(ts, ":");
-        if (null != tss) {
+        Matcher m = _p_tm.matcher(ts);
+
+        if (m.find()) {
             TmInfo ti = new TmInfo();
             // 仅仅到分钟
-            if (tss.length == 2) {
-                int hh = Integer.parseInt(tss[0]);
-                int mm = Integer.parseInt(tss[1]);
-                ti.value = hh * 3600 + mm * 60;
-                ti.hour = hh;
-                ti.minute = mm;
+            if (null == m.group(3)) {
+                ti.hour = Integer.parseInt(m.group(1));
+                ti.minute = Integer.parseInt(m.group(2));
                 ti.second = 0;
-                return ti;
+                ti.millisecond = 0;
             }
             // 到秒
-            if (tss.length == 3) {
-                int hh = Integer.parseInt(tss[0]);
-                int mm = Integer.parseInt(tss[1]);
-                int ss = Integer.parseInt(tss[2]);
-                ti.value = hh * 3600 + mm * 60 + ss;
-                ti.hour = hh;
-                ti.minute = mm;
-                ti.second = ss;
-                return ti;
+            else if (null == m.group(5)) {
+                ti.hour = Integer.parseInt(m.group(1));
+                ti.minute = Integer.parseInt(m.group(2));
+                ti.second = Integer.parseInt(m.group(4));
+                ti.millisecond = 0;
             }
+            // 到毫秒
+            else {
+                ti.hour = Integer.parseInt(m.group(1));
+                ti.minute = Integer.parseInt(m.group(2));
+                ti.second = Integer.parseInt(m.group(4));
+                ti.millisecond = Integer.parseInt(m.group(6));
+            }
+            // 计算其他的值
+            ti.value = ti.hour * 3600 + ti.minute * 60 + ti.second;
+            ti.valueInMillisecond = ti.value * 1000 + ti.millisecond;
+            // 返回
+            return ti;
         }
         throw Lang.makeThrow("Wrong format of time string '%s'", ts);
     }
@@ -124,22 +156,167 @@ public abstract class Times {
      */
     public static class TmInfo {
         public int value;
+        public int valueInMillisecond;
         public int hour;
         public int minute;
         public int second;
+        public int millisecond;
 
-        public String toString() {
-            return toString(false);
+        public void offset(int sec) {
+            this.valueInMillisecond += sec * 1000;
+            this.__recound_by_valueInMilliSecond();
         }
 
-        public String toString(boolean ignoreZeroSecond) {
-            String str = Strings.alignRight(hour, 2, '0')
-                         + ":"
-                         + Strings.alignRight(minute, 2, '0');
-            if (second == 0 && ignoreZeroSecond) {
-                return str;
+        public void offsetInMillisecond(int ms) {
+            this.valueInMillisecond += ms;
+            this.__recound_by_valueInMilliSecond();
+        }
+
+        private void __recound_by_valueInMilliSecond() {
+            // 确保毫秒数在一天之内，即 [0, 86399000]
+            if (this.valueInMillisecond >= 86400000) {
+                this.valueInMillisecond = this.valueInMillisecond % 86400000;
             }
-            return str + ":" + Strings.alignRight(second, 2, '0');
+            // 负数表示后退
+            else if (this.valueInMillisecond < 0) {
+                this.valueInMillisecond = this.valueInMillisecond % 86400000;
+                if (this.valueInMillisecond < 0)
+                    this.valueInMillisecond = 86400000 + this.valueInMillisecond;
+            }
+            // 计算其他值
+            this.value = this.valueInMillisecond / 1000;
+            this.millisecond = this.valueInMillisecond - this.value * 1000;
+            this.hour = Math.min(23, this.value / 3600);
+            this.minute = Math.min(59, (this.value - (this.hour * 3600)) / 60);
+            this.second = Math.min(59, this.value - (this.hour * 3600) - (this.minute * 60));
+        }
+
+        @Override
+        public String toString() {
+            String fmt = "HH:mm";
+            // 到毫秒
+            if (0 != this.millisecond) {
+                fmt += ":ss.SSS";
+            }
+            // 到秒
+            else if (0 != this.second) {
+                fmt += ":ss";
+            }
+            return toString(fmt);
+        }
+
+        private static Pattern _p_tmfmt = Pattern.compile("a|[HhKkms]{1,2}|S(SS)?");
+
+        /**
+         * <pre>
+         * a    Am/pm marker (AM/PM)
+         * H   Hour in day (0-23)
+         * k   Hour in day (1-24)
+         * K   Hour in am/pm (0-11)
+         * h   Hour in am/pm (1-12)
+         * m   Minute in hour
+         * s   Second in minute
+         * S   Millisecond Number
+         * HH  补零的小时(0-23)
+         * kk  补零的小时(1-24)
+         * KK  补零的半天小时(0-11)
+         * hh  补零的半天小时(1-12)
+         * mm  补零的分钟
+         * ss  补零的秒
+         * SSS 补零的毫秒
+         * </pre>
+         * 
+         * @param fmt
+         *            格式化字符串类似 <code>"HH:mm:ss,SSS"</code>
+         * @return 格式化后的时间
+         */
+        public String toString(String fmt) {
+            StringBuilder sb = new StringBuilder();
+            fmt = Strings.sBlank(fmt, "HH:mm:ss");
+            Matcher m = _p_tmfmt.matcher(fmt);
+            int pos = 0;
+            while (m.find()) {
+                int l = m.start();
+                // 记录之前
+                if (l > pos) {
+                    sb.append(fmt.substring(pos, l));
+                }
+                // 偏移
+                pos = m.end();
+
+                // 替换
+                String s = m.group(0);
+                if ("a".equals(s)) {
+                    sb.append(this.value > 43200 ? "PM" : "AM");
+                }
+                // H Hour in day (0-23)
+                else if ("H".equals(s)) {
+                    sb.append(this.hour);
+                }
+                // k Hour in day (1-24)
+                else if ("k".equals(s)) {
+                    sb.append(this.hour + 1);
+                }
+                // K Hour in am/pm (0-11)
+                else if ("K".equals(s)) {
+                    sb.append(this.hour % 12);
+                }
+                // h Hour in am/pm (1-12)
+                else if ("h".equals(s)) {
+                    sb.append((this.hour % 12) + 1);
+                }
+                // m Minute in hour
+                else if ("m".equals(s)) {
+                    sb.append(this.minute);
+                }
+                // s Second in minute
+                else if ("s".equals(s)) {
+                    sb.append(this.second);
+                }
+                // S Millisecond Number
+                else if ("S".equals(s)) {
+                    sb.append(this.millisecond);
+                }
+                // HH 补零的小时(0-23)
+                else if ("HH".equals(s)) {
+                    sb.append(String.format("%02d", this.hour));
+                }
+                // kk 补零的小时(1-24)
+                else if ("kk".equals(s)) {
+                    sb.append(String.format("%02d", this.hour + 1));
+                }
+                // KK 补零的半天小时(0-11)
+                else if ("KK".equals(s)) {
+                    sb.append(String.format("%02d", this.hour % 12));
+                }
+                // hh 补零的半天小时(1-12)
+                else if ("hh".equals(s)) {
+                    sb.append(String.format("%02d", (this.hour % 12) + 1));
+                }
+                // mm 补零的分钟
+                else if ("mm".equals(s)) {
+                    sb.append(String.format("%02d", this.minute));
+                }
+                // ss 补零的秒
+                else if ("ss".equals(s)) {
+                    sb.append(String.format("%02d", this.second));
+                }
+                // SSS 补零的毫秒
+                else if ("SSS".equals(s)) {
+                    sb.append(String.format("%03d", this.millisecond));
+                }
+                // 不认识
+                else {
+                    sb.append(s);
+                }
+            }
+            // 结尾
+            if (pos < fmt.length()) {
+                sb.append(fmt.substring(pos));
+            }
+
+            // 返回
+            return sb.toString();
         }
     }
 
@@ -266,6 +443,7 @@ public abstract class Times {
      * 
      * @deprecated since 1.b.49 util 1.b.51
      */
+    @Deprecated
     public static long ms(String ds, TimeZone tz) {
         return ams(ds, tz);
     }
@@ -308,6 +486,18 @@ public abstract class Times {
     }
 
     /**
+     * 返回当前时间在一天中的毫秒数
+     * 
+     * @param str
+     *            时间字符串
+     * 
+     * @return 当前时间在一天中的毫秒数
+     */
+    public static int ms(String str) {
+        return Ti(str).valueInMillisecond;
+    }
+
+    /**
      * 根据一个当天的绝对毫秒数，得到一个时间字符串，格式为 "HH:mm:ss.EEE"
      * 
      * @param ms
@@ -317,7 +507,7 @@ public abstract class Times {
     public static String mss(int ms) {
         int sec = ms / 1000;
         ms = ms - sec * 1000;
-        return secs((int) sec) + "." + Strings.alignRight(ms, 3, '0');
+        return secs(sec) + "." + Strings.alignRight(ms, 3, '0');
     }
 
     /**
@@ -506,6 +696,17 @@ public abstract class Times {
     }
 
     /**
+     * 把时间转换成格式为 yyyy-MM-dd HH:mm:ss.SSS 的字符串
+     * 
+     * @param d
+     *            时间对象
+     * @return 该时间的字符串形式 , 格式为 yyyy-MM-dd HH:mm:ss.SSS
+     */
+    public static String sDTms4(Date d) {
+        return format(DF_DATE_TIME_MS4, d);
+    }
+
+    /**
      * 把时间转换成格式为 yyyy-MM-dd HH:mm:ss 的字符串
      * 
      * @param d
@@ -548,11 +749,22 @@ public abstract class Times {
      * 
      * @param sec
      *            秒数
-     * @return 格式为 HH:mm:ss 的字符串
+     * @return 格式为 HH:mm 的字符串
      */
     public static String sTmin(int sec) {
         int[] ss = T(sec);
         return Strings.alignRight(ss[0], 2, '0') + ":" + Strings.alignRight(ss[1], 2, '0');
+    }
+
+    /**
+     * 将一个毫秒秒数（天中），转换成一个格式为 HH:mm:ss,SSS 的字符串（精确到毫秒）
+     * 
+     * @param ams
+     *            当天毫秒数
+     * @return 格式为 HH:mm:ss,SSS 的字符串
+     */
+    public static String sTms(long ams) {
+        return Tims(ams).toString("HH:mm:ss,SSS");
     }
 
     /**
@@ -965,18 +1177,13 @@ public abstract class Times {
      * @return timestamp 时间戳字符串
      */
     public static String sDT2TS(String str, DateFormat df) {
-        String timestamp = null;
-        Date date;
         try {
-            date = df.parse(str);
-            long l = date.getTime();
-            String tmp = String.valueOf(l);
-            timestamp = tmp.substring(0, 10);
+            return "" + (df.parse(str).getTime() / 1000);
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-        return timestamp;
+        return "0";
     }
 
     /**
@@ -1176,8 +1383,7 @@ public abstract class Times {
         if (!isDate(birth)) {
             return "";
         }
-        int month = Integer.parseInt(birth.substring(birth.indexOf("-")
-                                                     + 1,
+        int month = Integer.parseInt(birth.substring(birth.indexOf("-") + 1,
                                                      birth.lastIndexOf("-")));
         int day = Integer.parseInt(birth.substring(birth.lastIndexOf("-") + 1));
         String s = "魔羯水瓶双鱼牡羊金牛双子巨蟹狮子处女天秤天蝎射手魔羯";
@@ -1202,7 +1408,7 @@ public abstract class Times {
         reg.append("-?((0?[1-9])|([1-2][0-9])|(3[01])))|(((0?[469])|(11))");
         reg.append("-?((0?[1-9])|([1-2][0-9])|(30)))|(0?2-?((0?[");
         reg.append("1-9])|(1[0-9])|(2[0-8]))))))");
-        Pattern p = Pattern.compile(reg.toString());
+        Pattern p = Regex.getPattern(reg.toString());
         return p.matcher(date).matches();
     }
 
@@ -1384,5 +1590,75 @@ public abstract class Times {
         }
         long diff = end.getTime() - start.getTime();
         return diff / unit;
+    }
+
+    /**
+     * 取得指定日期过 minute 分钟后的日期 (当 minute 为负数表示指定分钟之前)
+     *
+     * @param date
+     *            日期 为null时表示当天
+     */
+    public static Date nextMinute(Date date, int minute) {
+        Calendar cal = Calendar.getInstance();
+        if (date != null) {
+            cal.setTime(date);
+        }
+        cal.add(Calendar.MINUTE, minute);
+        return cal.getTime();
+    }
+
+    /**
+     * 取得指定日期过 second 秒后的日期 (当 second 为负数表示指定秒之前)
+     *
+     * @param date
+     *            日期 为null时表示当天
+     */
+    public static Date nextSecond(Date date, int second) {
+        Calendar cal = Calendar.getInstance();
+        if (date != null) {
+            cal.setTime(date);
+        }
+        cal.add(Calendar.SECOND, second);
+        return cal.getTime();
+    }
+
+    /**
+     * 取得指定日期过 hour 小时后的日期 (当 hour 为负数表示指定小时之前)
+     *
+     * @param date
+     *            日期 为null时表示当天
+     */
+    public static Date nextHour(Date date, int hour) {
+        Calendar cal = Calendar.getInstance();
+        if (date != null) {
+            cal.setTime(date);
+        }
+        cal.add(Calendar.HOUR, hour);
+        return cal.getTime();
+    }
+
+    /**
+     * Unix时间戳转Date日期
+     *
+     * @param timestamp
+     *            时间戳
+     * @return 日期
+     */
+    public static Date ts2D(long timestamp) {
+        return new Date(Long.parseLong(timestamp * 1000 + ""));
+    }
+
+    /**
+     * Date日期转Unix时间戳
+     *
+     * @param date 日期
+     * @return 时间戳
+     */
+    public static long d2TS(Date date) {
+        if (Lang.isEmpty(date)) {
+            return getTS();
+        } else {
+            return date.getTime() / 1000;
+        }
     }
 }

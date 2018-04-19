@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 
 import org.nutz.lang.Lang;
 import org.nutz.lang.Strings;
+import org.nutz.lang.Xmls;
 import org.nutz.lang.meta.Pair;
 
 /**
@@ -15,6 +16,13 @@ import org.nutz.lang.meta.Pair;
  * @author zozoh(zozohtnt@gmail.com)
  */
 public class Tag extends SimpleNode<HtmlToken> {
+
+    /**
+     * 存储一段 HTML 片段，如果这个有值，那么 _join_to_string() 的时候，会直接使用它 TODO zozoh:
+     * 我知道这是一个丑陋的实现，但是有什么办法，今天晚上就要用啊。我来不及写个 HTML 的解析器 -_-! 以后有机会，应该写个好点的 HTML
+     * 解析类。Jsoup 那玩意稍微有点弱啊~~~
+     */
+    private String htmlSegment;
 
     public static Tag tag(String name, String... attrs) {
         return NEW(name).attrs(attrs);
@@ -29,10 +37,15 @@ public class Tag extends SimpleNode<HtmlToken> {
     public static Tag text(String text) {
         Tag tag = new Tag();
         if (null != text) {
-            text = text.replace("&", "&amp;");
-            text = text.replace("<", "&lt;").replace(">", "&gt;");
+            text = Strings.escapeHtml(text);
         }
         tag.set(new HtmlToken().setValue(text));
+        return tag;
+    }
+
+    public static Tag html(String html) {
+        Tag tag = new Tag();
+        tag.htmlSegment = html;
         return tag;
     }
 
@@ -45,7 +58,7 @@ public class Tag extends SimpleNode<HtmlToken> {
     }
 
     public boolean isNoChild() {
-        return this.is("^(BR|HR|IMG|LINK|META)$");
+        return this.is("^(BR|HR|IMG|LINK|META|INPUT)$");
     }
 
     public boolean isHeading() {
@@ -71,9 +84,9 @@ public class Tag extends SimpleNode<HtmlToken> {
     }
 
     public boolean is(String regex) {
-        if (this.isTextNode())
-            return false;
         String tagName = this.tagName();
+        if (null == tagName)
+            return false;
         if (regex.startsWith("^"))
             return tagName.matches(regex.toUpperCase());
         return tagName.equals(regex.toUpperCase());
@@ -88,10 +101,14 @@ public class Tag extends SimpleNode<HtmlToken> {
     }
 
     public boolean isElement() {
+        if (null != htmlSegment)
+            return true;
         return this.get().isElement();
     }
 
     public boolean isTextNode() {
+        if (null != htmlSegment)
+            return false;
         return this.get().isText();
     }
 
@@ -118,6 +135,14 @@ public class Tag extends SimpleNode<HtmlToken> {
     }
 
     public String tagName() {
+        if (null != this.htmlSegment) {
+            if (this.htmlSegment.startsWith("<")) {
+                int pos = this.htmlSegment.indexOf(' ');
+                if (pos > 1)
+                    return this.htmlSegment.substring(1, pos);
+            }
+            return null;
+        }
         return get().getTagName();
     }
 
@@ -279,6 +304,12 @@ public class Tag extends SimpleNode<HtmlToken> {
             tagWatcher.invoke(tag);
         }
 
+        // HTML 片段
+        if (null != tag.htmlSegment) {
+            sb.append(tag.htmlSegment);
+            return;
+        }
+
         // 纯文本
         if (tag.get().isText()) {
             sb.append(tag.get().getValue());
@@ -345,8 +376,39 @@ public class Tag extends SimpleNode<HtmlToken> {
     }
 
     private static void __join_attributes(StringBuilder sb, Tag tag) {
-        for (Pair<String> attr : tag.get().getAttributes())
-            sb.append(' ').append(attr.toString());
+        for (Pair<String> attr : tag.get().getAttributes()) {
+            String name = attr.getName();
+            String n2 = name.toLowerCase();
+            // 无需 value 节点
+            if (n2.matches("^(disabled|checked)$")) {
+                sb.append(' ').append(name);
+            }
+            // 输出值
+            else {
+                sb.append(' ').append(attr.toString());
+            }
+        }
     }
 
+    @SuppressWarnings("rawtypes")
+    public void toXml(StringBuilder sb, int level) {
+        if (level == 0)
+            sb.append(Xmls.HEAD);
+        if (sb.length() > 2 && sb.charAt(sb.length() - 1) != '\n')
+            sb.append("\r\n");
+        if (level > 0)
+            sb.append(Strings.dup(' ', level * 2));
+        __join_tag_begin(sb, this);
+        if (getChildren().size() == 1) {
+            sb.append(getText());
+        } else if (hasChild()) {
+            for (Node node : getChildren()) {
+                node.toXml(sb, level + 1);
+            }
+            if (level > 0)
+                sb.append(Strings.dup(' ', level * 2));
+        }
+        __join_tag_end(sb, this);
+        sb.append("\r\n");
+    }
 }

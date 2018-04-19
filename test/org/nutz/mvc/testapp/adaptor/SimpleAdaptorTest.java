@@ -7,6 +7,7 @@ import java.util.TimeZone;
 
 import org.junit.Test;
 import org.nutz.json.Json;
+import org.nutz.json.JsonFormat;
 import org.nutz.lang.Times;
 import org.nutz.lang.util.NutMap;
 import org.nutz.mvc.testapp.BaseWebappTest;
@@ -30,6 +31,42 @@ public class SimpleAdaptorTest extends BaseWebappTest {
         assertEquals(200, resp.getStatus());
 
         get("/adaptor/err/param/ABC");
+        assertEquals(200, resp.getStatus());
+    }
+
+    @Test
+    public void test_err_param_anywhere() {
+        get("/adaptor/err/param/anywhere?id=ABC");
+        assertEquals(200, resp.getStatus());
+
+        get("/adaptor/err/param/anywhere/ABC");
+        assertEquals(200, resp.getStatus());
+    }
+
+    @Test
+    public void test_err_param_with_pathargs() {
+        get("/adaptor/err/param/pathargs/a?id=ABC");
+        assertEquals(200, resp.getStatus());
+
+        get("/adaptor/err/param/pathargs/a/ABC");
+        assertEquals(200, resp.getStatus());
+    }
+
+    @Test
+    public void test_multi_err_ctxs() {
+        get("/adaptor/multi/err/ctxs/a?id=ABC");
+        assertEquals(200, resp.getStatus());
+
+        get("/adaptor/multi/err/ctxs/a/ABC");
+        assertEquals(200, resp.getStatus());
+    }
+
+    @Test
+    public void test_multi_err_ctxs2() {
+        get("/adaptor/multi/err/ctxs2/a/b?id=ABC");
+        assertEquals(200, resp.getStatus());
+
+        get("/adaptor/multi/err/ctxs2/a/b/ABC");
         assertEquals(200, resp.getStatus());
     }
 
@@ -106,7 +143,19 @@ public class SimpleAdaptorTest extends BaseWebappTest {
         assertEquals(200, get("/adaptor/param_without_param").getStatus());
         assertEquals("[\"1\", \"2\", \"4\", \"3\"]".replaceAll(" ", ""), get("/adaptor/param_without_param?uids=1,2,4,3").getContent().replaceAll(" ", ""));
     }
-    
+
+    @Test
+    public void test_object_without_param() {
+        assertEquals(200, get("/adaptor/object_without_param").getStatus());
+        assertEquals("{\"name\": \"object\"}".replaceAll(" ", ""), get("/adaptor/object_without_param?name=object").getContent().replaceAll(" ", ""));
+    }
+
+    @Test
+    public void test_path_args_and_object_without_param() {
+        assertEquals(200, get("/adaptor/path_args_and_object_without_param/1").getStatus());
+        assertEquals("{\"name\": \"1\"}".replaceAll(" ", ""), get("/adaptor/path_args_and_object_without_param/1?name=object").getContent().replaceAll(" ", ""));
+    }
+
     @Test
     public void issue_1069() {
         resp = post("/adaptor/issue1069", "");
@@ -136,5 +185,32 @@ public class SimpleAdaptorTest extends BaseWebappTest {
         assertEquals("abc", issue.name);
         assertEquals(123, issue.age);
         //assertEquals("1495667792000", resp.getContent());
+    }
+    
+    @Test
+    public void issue_1310() {
+        resp = post("/adaptor/issue1310", new NutMap("age", "123"));
+        assertEquals(200, resp.getStatus());
+        String str = resp.getContent();
+        Issue1277 issue = Json.fromJson(Issue1277.class, str);
+        assertEquals(123, issue.age);
+        //assertEquals("1495667792000", resp.getContent());
+    }
+    
+
+    @Test
+    public void re_view_with_NutMap() {
+        resp = post("/adaptor/issue13xx", new NutMap("age", "123"));
+        assertEquals(200, resp.getStatus());
+        String str = resp.getContent();
+        assertEquals(Json.toJson(new NutMap("id", 1), JsonFormat.compact()), str);
+    }
+    
+    @Test
+    public void test_localdt() {
+        resp = post("/adaptor/jdk8/localdt", new NutMap("date", "2018-02-20 21:11:51"));
+        assertEquals(200, resp.getStatus());
+        String str = resp.getContent();
+        assertEquals("2018-02-20T21:11:51", str);
     }
 }

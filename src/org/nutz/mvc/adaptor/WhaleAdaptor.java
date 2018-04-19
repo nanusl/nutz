@@ -18,6 +18,7 @@ import org.nutz.lang.Strings;
 import org.nutz.log.Log;
 import org.nutz.log.Logs;
 import org.nutz.mvc.Mvcs;
+import org.nutz.mvc.adaptor.injector.MapPairInjector;
 import org.nutz.mvc.annotation.Param;
 import org.nutz.mvc.upload.FastUploading;
 import org.nutz.mvc.upload.FieldMeta;
@@ -78,35 +79,40 @@ public class WhaleAdaptor extends PairAdaptor {
         }
 
         // Map
-        if (Map.class.isAssignableFrom(clazz))
-            return new MapSelfInjector();
+        if (Map.class.isAssignableFrom(clazz)) {
+            final Class<?> klass = clazz;
+            return new ParamInjector() {
+                public Object get(ServletContext sc, HttpServletRequest req, HttpServletResponse resp, Object refer) {
+                    if (refer != null)
+                        return refer;
+                    return new MapPairInjector(klass).get(sc, req, resp, refer);
+                }
+            };
+        }
 
-        if (null == param)
-            return super.evalInjectorBy(type, null);
-
-        String paramName = param.value();
+        String pn = null == param ? getParamRealName(curIndex) : param.value();
 
         // File
         if (File.class.isAssignableFrom(clazz))
-            return new FileInjector(paramName);
+            return new FileInjector(pn);
         // FileMeta
         if (FieldMeta.class.isAssignableFrom(clazz))
-            return new FileMetaInjector(paramName);
+            return new FileMetaInjector(pn);
         // TempFile
         if (TempFile.class.isAssignableFrom(clazz))
-            return new TempFileInjector(paramName);
+            return new TempFileInjector(pn);
         // InputStream
         if (InputStream.class.isAssignableFrom(clazz))
-            return new InputStreamInjector(paramName);
+            return new InputStreamInjector(pn);
         // Reader
         if (Reader.class.isAssignableFrom(clazz))
-            return new ReaderInjector(paramName);
+            return new ReaderInjector(pn);
         // List
         //if (List.class.isAssignableFrom(clazz)) {
         //    return new MapListInjector(paramName);
         //}
         if (TempFile[].class.isAssignableFrom(clazz)) {
-            return new TempFileArrayInjector(paramName);
+            return new TempFileArrayInjector(pn);
         }
         // Other
         return super.evalInjectorBy(type, param);

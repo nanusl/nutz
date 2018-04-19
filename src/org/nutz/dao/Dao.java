@@ -119,6 +119,8 @@ public interface Dao {
      * @see org.nutz.dao.Dao#insert(Object)
      */
     <T> T insert(T obj, FieldFilter filter);
+    
+    <T> T insert(T obj, String actived);
 
     /**
      * 自由的向一个数据表插入一条数据。数据用名值链描述
@@ -1201,5 +1203,11 @@ public interface Dao {
      */
     <T> List<T> queryByJoin(Class<T> classOfT, String regex, Condition cnd, Pager pager);
     
+    <T> int countByJoin(Class<T> classOfT, String regex, Condition cnd);
+    
     EntityHolder getEntityHolder();
+    
+    void truncate(Class<?> klass);
+    
+    void truncate(String tableName);
 }

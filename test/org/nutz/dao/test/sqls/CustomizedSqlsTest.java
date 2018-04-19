@@ -1,15 +1,13 @@
 package org.nutz.dao.test.sqls;
 
-import static org.junit.Assert.*;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
-
 import org.nutz.Nutzs;
 import org.nutz.dao.Cnd;
 import org.nutz.dao.SqlNotFoundException;
@@ -28,7 +26,13 @@ import org.nutz.dao.test.meta.Pet;
 import org.nutz.dao.test.meta.Platoon;
 import org.nutz.dao.test.meta.Tank;
 import org.nutz.dao.test.meta.issue1176.Issue1176;
+import org.nutz.dao.util.cri.Exps;
+import org.nutz.dao.util.cri.SqlExpression;
 import org.nutz.trans.Atom;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class CustomizedSqlsTest extends DaoCase {
 
@@ -153,7 +157,7 @@ public class CustomizedSqlsTest extends DaoCase {
     
     @Test
     public void test_cnd_pager() {
-        pojos.init();
+        pojos.initPet();
         Sql sql = Sqls.create("select * from t_pet $condition");
         sql.setCondition(Cnd.where("name", "=", "wendal"));
         Pager pager = dao.createPager(1, 20);
@@ -164,6 +168,7 @@ public class CustomizedSqlsTest extends DaoCase {
     @Test
     public void test_in() {
         Sqls.setSqlBorning(NutSql.class);
+        pojos.initPet();
         dao.clear(Pet.class);
         dao.insert(Pet.create(4));
         List<Pet> pets = dao.query(Pet.class, null, dao.createPager(1, 2));
@@ -198,5 +203,16 @@ public class CustomizedSqlsTest extends DaoCase {
         Issue1176 re = dao.fetch(Issue1176.class, Cnd.where("colA", "=", "1111111"));
         assertNotNull(re);
         assertEquals("测试1111", re.getColB());
+    }
+    
+    @Test
+    public void test_issue_1281() {
+        SqlExpression sqle = Exps.inSql2("id", "select user_id from role where id in (%s)", Arrays.asList(1,2,3));
+        Cnd cnd = Cnd.where(sqle);
+        System.out.println(cnd.toString());
+        StringBuilder sb = new StringBuilder();
+        sqle.joinSql(null, sb); // 取出带问号的SQL
+        System.out.println(sb);
+        assertEquals("id IN (select user_id from role where id in (?,?,?))", sb.toString());
     }
 }

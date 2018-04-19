@@ -29,7 +29,7 @@ public class FastMethodFactory implements Opcodes {
     
     protected static FastMethod make(final Method method) {
         Class<?> klass = method.getDeclaringClass();
-        String descriptor = Type.getMethodDescriptor(method);
+        String descriptor = Type.getMethodDescriptor(method) + method.getDeclaringClass().getClassLoader();
         String key = "$FM$" + method.getName() + "$" + Lang.md5(descriptor);
         String className = klass.getName() + key;
         if (klass.getName().startsWith("java"))
@@ -37,6 +37,12 @@ public class FastMethodFactory implements Opcodes {
         FastMethod fm = cache.get(className);
         if (fm != null)
             return fm;
+        // fix issue #1382 : 非public类的方法,统统做成FallbackFastMethod
+        if (!Modifier.isPublic(klass.getModifiers())) {
+            fm = new FallbackFastMethod(method);
+            cache.put(className, fm);
+            return fm;
+        }
         try {
             fm = (FastMethod) klass.getClassLoader().loadClass(className).newInstance();
             cache.put(className, fm);
@@ -67,7 +73,7 @@ public class FastMethodFactory implements Opcodes {
 
     protected static FastMethod make(Constructor<?> constructor) {
         Class<?> klass = constructor.getDeclaringClass();
-        String descriptor = Type.getConstructorDescriptor(constructor);
+        String descriptor = Type.getConstructorDescriptor(constructor) + constructor.getDeclaringClass().getClassLoader();;
         String key = Lang.md5(descriptor);
         String className = klass.getName() + "$FC$" + key;
         if (klass.getName().startsWith("java"))

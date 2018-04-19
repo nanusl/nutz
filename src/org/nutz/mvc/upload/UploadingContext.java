@@ -7,6 +7,7 @@ import org.nutz.filepool.NutFilePool;
 import org.nutz.filepool.SynchronizedFilePool;
 import org.nutz.lang.Encoding;
 import org.nutz.lang.Strings;
+import org.nutz.lang.util.Regex;
 import org.nutz.log.Log;
 import org.nutz.log.Logs;
 
@@ -20,7 +21,7 @@ public class UploadingContext {
     private static final Log log = Logs.get();
 
     public static UploadingContext create(String poolPath) {
-        return create(new NutFilePool(poolPath));
+        return create(NutFilePool.getOrCreatePool(poolPath, 0));
     }
 
     public static UploadingContext create(FilePool pool) {
@@ -28,7 +29,7 @@ public class UploadingContext {
     }
 
     public UploadingContext(String poolPath) {
-        this(new NutFilePool(poolPath, 2000));
+        this(NutFilePool.getOrCreatePool(poolPath, 2000));
     }
 
     public UploadingContext(FilePool pool) {
@@ -73,6 +74,8 @@ public class UploadingContext {
      * 一个正则表达式，描述了可以允许的文件内容类型
      */
     private String contentTypeFilter;
+    
+    private Pattern nameFilterPattern;
 
     public String getCharset() {
         return charset;
@@ -131,6 +134,8 @@ public class UploadingContext {
 
     public UploadingContext setNameFilter(String nameFilter) {
         this.nameFilter = nameFilter;
+        if (!Strings.isBlank(nameFilter))
+        	this.nameFilterPattern = Pattern.compile(nameFilter);
         return this;
     }
 
@@ -138,7 +143,9 @@ public class UploadingContext {
         if (null == nameFilter || Strings.isBlank(name) 
                 || "\"\"".equals(name)) //用户不选择文件时,文件名会是"" 两个双引号
             return true;
-        return Pattern.matches(nameFilter, name.toLowerCase());
+        if (nameFilterPattern == null)
+        	return Regex.match(nameFilter, name.toLowerCase());
+        return nameFilterPattern.matcher(name.toLowerCase()).find();
     }
 
     public String getContentTypeFilter() {
@@ -153,6 +160,6 @@ public class UploadingContext {
     public boolean isContentTypeAccepted(String contentType) {
         if (null == contentTypeFilter || Strings.isBlank(contentType))
             return true;
-        return Pattern.matches(contentTypeFilter, contentType.toLowerCase());
+        return Regex.match(contentTypeFilter, contentType.toLowerCase());
     }
 }
